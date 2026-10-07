@@ -1,0 +1,20 @@
+services:
+  abacus:
+    build: .
+    image: abacus:latest
+    container_name: abacus
+    ports:
+      - "8080:8080"
+    volumes:
+      - abacus-data:/data   # SQLite database + original files + thumbnails
+    environment:
+      # Uncomment to require a login (HTTP basic auth):
+      # AUTH_USER: abacus
+      # AUTH_PASSWORD: change-me
+      IMPORT_CONCURRENCY: 3
+      MAX_DOWNLOAD_MB: 1024
+    restart: unless-stopped
+
+volumes:
+  abacus-data:
+    name: abacus-data   # fixed name, independent of the project folder name

@@ -1,0 +1,11 @@
+{
+  "name": "abacus",
+  "private": true,
+  "description": "Self-hosted visual library inspired by Eagle — save images, videos and X posts into folders.",
+  "scripts": {
+    "install:all": "npm ci --prefix server && npm ci --prefix web",
+    "dev": "npm run dev --prefix server & npm run dev --prefix web",
+    "build": "npm run build --prefix web",
+    "start": "npm start --prefix server"
+  }
+}
