@@ -1878,6 +1878,11 @@ a {
   place-items: center;
   overflow: hidden;
   position: relative;
+  cursor: grab;
+  touch-action: none;
+}
+.zoom-wrap.dragging {
+  cursor: grabbing;
 }
 .zoom-img {
   grid-area: 1 / 1;
@@ -1904,6 +1909,7 @@ a {
   border-radius: 20px;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
+  pointer-events: none;
 }
 .viewer-nav {
   position: absolute;
