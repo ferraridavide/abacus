@@ -508,7 +508,8 @@ a {
   margin: 2px 6px 4px;
 }
 .segmented.full button {
-  flex: 1;
+  flex: auto;
+  padding: 0 4px;
 }
 .size-slider {
   width: 92px;
@@ -2158,7 +2159,7 @@ a {
   }
 }
 @container main (max-width: 640px) {
-  .toolbar .segmented,
+  .toolbar .segmented:not(.full),
   .btn.primary span {
     display: none;
   }

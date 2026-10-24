@@ -132,7 +132,7 @@ export function Toolbar() {
 
         <Popover
           align="right"
-          width={240}
+          width={280}
           trigger={(open, toggle) => (
             <button className={cls('tool-btn', (open || activeFilters > 0) && 'active')} onClick={toggle}>
               <ListFilter size={15} />
@@ -166,6 +166,7 @@ export function Toolbar() {
                   [
                     ['', 'Any'],
                     ['x', 'X'],
+                    ['social', 'Social'],
                     ['web', 'Web'],
                     ['arena', 'Are.na'],
                     ['upload', 'Upload'],

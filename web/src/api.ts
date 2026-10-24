@@ -1,4 +1,4 @@
-import type { Folder, Item, Job, Stats, TagCount } from './types';
+import type { Folder, ImportSources, Item, Job, Stats, TagCount } from './types';
 
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -38,6 +38,7 @@ export const api = {
     request<Folder>('PATCH', `/api/folders/${id}`, patch),
   deleteFolder: (id: string) => request<{ ok: boolean }>('DELETE', `/api/folders/${id}`),
   startImport: (body: { text: string; folderId?: string; tags?: string[] }) => request<Job>('POST', '/api/import', body),
+  importSources: () => request<ImportSources>('GET', '/api/import/sources'),
   job: (id: string) => request<Job>('GET', `/api/jobs/${id}`),
   /** Returns null when the zip isn't an Are.na export. */
   importArena: async (file: File, folderId?: string): Promise<Job | null> => {

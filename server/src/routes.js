@@ -6,6 +6,7 @@ import { newId, VIDEO_EXTS } from './util.js';
 import * as lib from './library.js';
 import { startImport, startArenaImport, getJob } from './jobs.js';
 import { readArenaZip } from './importers/arena.js';
+import { cobaltInfo } from './importers/cobalt.js';
 
 const notFound = (reply) => reply.code(404).send({ error: 'Not found' });
 
@@ -109,7 +110,7 @@ export async function routes(app) {
     }
   });
 
-  // ---------- import (X links, image URLs, web pages) ----------
+  // ---------- import (X links, cobalt-supported sites, image URLs, web pages) ----------
   app.post('/api/import', async (req, reply) => {
     const { text, urls, folderId, tags } = req.body || {};
     const job = startImport({ text: [text, ...(urls || [])].filter(Boolean).join('\n'), folderId, tags });
@@ -143,6 +144,9 @@ export async function routes(app) {
     // blocks are read lazily from the zip, so keep it until the job finishes
     return startArenaImport(channels, { parentId, onDone: () => fs.rmSync(tmp, { force: true }) });
   });
+
+  // Which extra sites link imports support (through cobalt, when configured).
+  app.get('/api/import/sources', async () => ({ cobalt: await cobaltInfo() }));
 
   app.get('/api/jobs/:id', async (req, reply) => getJob(req.params.id) || notFound(reply));
 

@@ -1,5 +1,5 @@
 export type ItemType = 'image' | 'gif' | 'video' | 'bookmark' | 'file';
-export type Source = 'upload' | 'x' | 'web' | 'arena';
+export type Source = 'upload' | 'x' | 'social' | 'web' | 'arena';
 
 export interface PaletteColor {
   hex: string;
@@ -77,6 +77,10 @@ export interface Filters {
   source: '' | Source;
   rating: number;
   color: string;
+}
+
+export interface ImportSources {
+  cobalt: { enabled: boolean; online?: boolean; version?: string; services: string[] };
 }
 
 export interface JobEntry {

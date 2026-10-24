@@ -33,7 +33,7 @@ db.exec(`
     palette       TEXT,                   -- JSON [{hex, ratio}]
     url           TEXT,                   -- source page (tweet, web page)
     media_url     TEXT,                   -- original media URL, used for de-duplication
-    source        TEXT NOT NULL DEFAULT 'upload', -- upload | x | web
+    source        TEXT NOT NULL DEFAULT 'upload', -- upload | x | web | arena | social
     author        TEXT,
     author_handle TEXT,
     author_avatar TEXT,

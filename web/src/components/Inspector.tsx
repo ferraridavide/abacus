@@ -261,7 +261,7 @@ function SingleInspector({ item }: { item: Item }) {
             </>
           )}
           <dt>Source</dt>
-          <dd>{{ x: 'X (Twitter)', web: 'Web', upload: 'Upload', arena: 'Are.na' }[item.source]}</dd>
+          <dd>{{ x: 'X (Twitter)', social: 'Social', web: 'Web', upload: 'Upload', arena: 'Are.na' }[item.source]}</dd>
         </dl>
       </Section>
 

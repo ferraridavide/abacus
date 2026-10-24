@@ -45,6 +45,33 @@ function parseMeta(html) {
   return meta;
 }
 
+/** Title, description, site name, and preview image of a web page. */
+function pageInfo(html, url) {
+  const meta = parseMeta(html);
+  const imageRaw = meta['og:image:secure_url'] || meta['og:image'] || meta['twitter:image'] || meta['twitter:image:src'];
+  let image = null;
+  try {
+    if (imageRaw) image = new URL(imageRaw, url).toString();
+  } catch {}
+  return {
+    title: meta['og:title'] || meta['twitter:title'] || meta.__title || nameFromUrl(url),
+    description: meta['og:description'] || meta['twitter:description'] || meta.description || '',
+    siteName: meta['og:site_name'] || new URL(url).hostname.replace(/^www\./, ''),
+    image,
+  };
+}
+
+/** Fetch a page and read its metadata. Best effort: falls back to names derived from the URL. */
+export async function fetchPageInfo(url) {
+  try {
+    const res = await fetchWithTimeout(url, { headers: { accept: 'text/html' } }, 15000);
+    const html = res.ok && (res.headers.get('content-type') || '').includes('html') ? await res.text() : '';
+    return pageInfo(html.slice(0, 2_000_000), url);
+  } catch {
+    return pageInfo('', url);
+  }
+}
+
 /** Import an arbitrary URL: a direct image/video, or a web page (saves its og:image). */
 export async function importUrl(url, { folderIds = [], tags = [] } = {}) {
   const existing = findByMediaUrl(url);
@@ -95,31 +122,26 @@ export async function importUrl(url, { folderIds = [], tags = [] } = {}) {
   }
 
   // Web page: read up to ~2 MB of HTML and pull OpenGraph metadata.
-  const html = (await res.text()).slice(0, 2_000_000);
-  const meta = parseMeta(html);
-  const title = meta['og:title'] || meta['twitter:title'] || meta.__title || nameFromUrl(url);
-  const description = meta['og:description'] || meta['twitter:description'] || meta.description || '';
-  const imageRaw = meta['og:image:secure_url'] || meta['og:image'] || meta['twitter:image'] || meta['twitter:image:src'];
+  const page = pageInfo((await res.text()).slice(0, 2_000_000), url);
   const common = {
-    name: title,
+    name: page.title,
     url,
     mediaUrl: url,
     source: 'web',
-    text: description,
-    author: meta['og:site_name'] || new URL(url).hostname.replace(/^www\./, ''),
+    text: page.description,
+    author: page.siteName,
     folderIds,
     tags,
   };
 
-  if (imageRaw) {
+  if (page.image) {
     try {
-      const imageUrl = new URL(imageRaw, url).toString();
-      const dl = await downloadBuffer(imageUrl);
+      const dl = await downloadBuffer(page.image);
       if (await probeImage(dl.buffer)) {
         const item = await addItem({
           ...common,
           buffer: dl.buffer,
-          ext: extFromMime(dl.contentType) || extFromUrl(imageUrl),
+          ext: extFromMime(dl.contentType) || extFromUrl(page.image),
           mime: dl.contentType,
         });
         return [{ status: 'imported', item }];

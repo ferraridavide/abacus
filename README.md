@@ -12,8 +12,9 @@ It runs as a web app with a Node.js backend and a SQLite database, and ships as 
 - Tags, notes, and 0–5 star ratings.
 - Search across names, notes, tags, post text, authors, and URLs.
 - Filters by type, source, rating, and dominant color.
-- Import from X (Twitter) post links, image and video URLs, web pages, Are.na channel exports, and local
-  files.
+- Import from X (Twitter) post links, YouTube, TikTok, Instagram, Reddit, and other sites supported by
+  [cobalt](https://github.com/imputnet/cobalt), image and video URLs, web pages, Are.na channel exports, and
+  local files.
 - A bookmarklet that saves the current page from any browser.
 - A full-screen viewer with zoom and keyboard navigation.
 
@@ -41,6 +42,11 @@ It runs as a web app with a Node.js backend and a SQLite database, and ships as 
 
 The database, original files, and thumbnails are stored in the `abacus-data` Docker volume.
 
+The compose file also starts a [cobalt](https://github.com/imputnet/cobalt) container, which Abacus uses to
+download media from YouTube, TikTok, Instagram, and other sites. It's only reachable from the Abacus container,
+and no port is published. To update it, run `docker compose pull cobalt && docker compose up -d cobalt`. To run
+without it, delete the `cobalt` service, the `COBALT_URL` variable, and the `depends_on` entry.
+
 ## Run locally
 
 1. Install dependencies:
@@ -58,6 +64,13 @@ The database, original files, and thumbnails are stored in the `abacus-data` Doc
    The API server listens on port 8080 and stores data in `./data`. The web client listens on port 5173
    and proxies API requests to the server.
 
+To import from the sites cobalt supports, start a cobalt container and point the server at it:
+
+```bash
+docker run -d --name cobalt -p 127.0.0.1:9000:9000 -e API_URL=http://localhost:9000/ ghcr.io/imputnet/cobalt:11
+COBALT_URL=http://localhost:9000 npm run dev
+```
+
 To run a production build without Docker:
 
 ```bash
@@ -69,14 +82,17 @@ npm start
 
 Set these environment variables in `docker-compose.yml` or in your shell.
 
-| Variable             | Default  | Description                                              |
-| -------------------- | -------- | -------------------------------------------------------- |
-| `PORT`               | `8080`   | HTTP port.                                               |
-| `DATA_DIR`           | `./data` | Directory for the database, files, and thumbnails.       |
-| `AUTH_PASSWORD`      | None     | If set, the server requires HTTP basic authentication.   |
-| `AUTH_USER`          | `abacus` | User name for basic authentication.                      |
-| `IMPORT_CONCURRENCY` | `3`      | Number of links fetched in parallel during an import.    |
-| `MAX_DOWNLOAD_MB`    | `1024`   | Maximum size of a single downloaded or uploaded file.    |
+| Variable               | Default  | Description                                                                                |
+| ---------------------- | -------- | ------------------------------------------------------------------------------------------ |
+| `PORT`                 | `8080`   | HTTP port.                                                                                 |
+| `DATA_DIR`             | `./data` | Directory for the database, files, and thumbnails.                                         |
+| `AUTH_PASSWORD`        | None     | If set, the server requires HTTP basic authentication.                                     |
+| `AUTH_USER`            | `abacus` | User name for basic authentication.                                                        |
+| `IMPORT_CONCURRENCY`   | `3`      | Number of links fetched in parallel during an import.                                      |
+| `MAX_DOWNLOAD_MB`      | `1024`   | Maximum size of a single downloaded or uploaded file.                                      |
+| `COBALT_URL`           | None     | URL of a cobalt instance. If unset, links to sites like YouTube are imported as web pages. |
+| `COBALT_API_KEY`       | None     | API key, if the cobalt instance requires one.                                              |
+| `COBALT_VIDEO_QUALITY` | `1080`   | Maximum video height requested from cobalt, or `max`.                                      |
 
 Per-browser preferences, such as layout, thumbnail size, and video autoplay, are set in **Settings**.
 
@@ -92,6 +108,22 @@ The author, post text, and post date are stored with each item.
 
 Abacus reads posts through X's public embed endpoint and falls back to the public fxtwitter API. Neither
 requires an API key. Protected and deleted posts can't be imported.
+
+### YouTube, TikTok, Instagram, and other sites
+
+When `COBALT_URL` is set, Abacus downloads links to any site that the cobalt instance supports, such as
+YouTube, TikTok, Instagram, Reddit, Bluesky, Vimeo, and SoundCloud. The **Links** tab of the import dialog
+lists the supported sites. Videos are saved as MP4, and posts with several photos or videos are saved as one
+item per file. The title, description, and preview image are read from the page. These items have the
+**Social** source.
+
+If cobalt doesn't support a link, or the link has no media, Abacus imports it as a web page. If cobalt
+supports the site but can't download the post, the import fails with cobalt's error code, for example
+`content.video.unavailable`.
+
+Some sites need a login to view public posts. To give cobalt your cookies, create a `cookies.json` file as
+described in the [cobalt documentation](https://github.com/imputnet/cobalt/blob/main/docs/run-an-instance.md),
+then uncomment `COOKIE_PATH` and the `volumes` entry of the `cobalt` service in `docker-compose.yml`.
 
 ### Are.na
 
