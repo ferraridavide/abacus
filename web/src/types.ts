@@ -79,8 +79,38 @@ export interface Filters {
   color: string;
 }
 
-export interface ImportSources {
-  cobalt: { enabled: boolean; online?: boolean; version?: string; services: string[] };
+/** An enabled import provider and the sites it adds to link imports. */
+export interface ActiveProvider {
+  id: string;
+  name: string;
+  sites: string[];
+}
+
+export interface ProviderField {
+  key: string;
+  label: string;
+  type: 'url' | 'text' | 'secret' | 'select';
+  required: boolean;
+  placeholder?: string;
+  hint?: string;
+  options?: { value: string; label: string }[];
+}
+
+/** An import provider's settings. Secret values come back as whether they're set. */
+export interface ProviderSettings {
+  id: string;
+  name: string;
+  description: string;
+  docsUrl?: string;
+  fields: ProviderField[];
+  enabled: boolean;
+  values: Record<string, string | boolean>;
+}
+
+export interface ProviderTest {
+  ok: boolean;
+  message: string;
+  sites?: string[];
 }
 
 export interface JobEntry {

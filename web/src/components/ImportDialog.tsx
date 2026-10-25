@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Bookmark, Globe, Grid2x2, Link2, Upload } from 'lucide-react';
 import { api } from '../api';
 import { useStore, currentFolderId } from '../store';
-import type { Folder } from '../types';
+import type { ActiveProvider, Folder } from '../types';
 import { countLinks } from '../lib/format';
 import { cls, DialogHead, Modal, PageLink, usePhone, XLogo } from './ui';
 
@@ -35,7 +35,7 @@ function ImportDialogInner() {
   const fileRef = useRef<HTMLInputElement>(null);
   const zipRef = useRef<HTMLInputElement>(null);
   const counts = useMemo(() => countLinks(text), [text]);
-  const services = useCobaltServices();
+  const providers = useProviders();
   const close = () => set({ importOpen: false });
 
   const submit = async () => {
@@ -86,11 +86,11 @@ function ImportDialogInner() {
             GIFs are downloaded in full quality; text-only posts are saved as cards. Direct image/video URLs and web
             pages (their preview image) work too.
           </p>
-          {services.length > 0 && (
-            <p className="hint small">
-              Videos, photos and audio are also downloaded from {services.join(', ')}.
+          {providers.map((p) => (
+            <p key={p.id} className="hint small">
+              Videos, photos and audio are also downloaded from {p.sites.join(', ')} (through {p.name}).
             </p>
-          )}
+          ))}
           <textarea
             className="links-input"
             autoFocus={!phone}
@@ -191,48 +191,16 @@ function ImportDialogInner() {
   );
 }
 
-const SERVICE_NAMES: Record<string, string> = {
-  bilibili: 'Bilibili',
-  bluesky: 'Bluesky',
-  dailymotion: 'Dailymotion',
-  facebook: 'Facebook',
-  instagram: 'Instagram',
-  loom: 'Loom',
-  newgrounds: 'Newgrounds',
-  ok: 'OK.ru',
-  pinterest: 'Pinterest',
-  reddit: 'Reddit',
-  rutube: 'Rutube',
-  snapchat: 'Snapchat',
-  soundcloud: 'SoundCloud',
-  streamable: 'Streamable',
-  tiktok: 'TikTok',
-  tumblr: 'Tumblr',
-  'twitch clips': 'Twitch clips',
-  vimeo: 'Vimeo',
-  vk: 'VK',
-  xiaohongshu: 'Xiaohongshu',
-  youtube: 'YouTube',
-};
-
-/** Display names of the sites the server's cobalt instance downloads from (empty when cobalt isn't set up). */
-function useCobaltServices() {
-  const [services, setServices] = useState<string[]>([]);
+/** Enabled import providers with the sites they download from (empty when none are set up). */
+function useProviders() {
+  const [providers, setProviders] = useState<ActiveProvider[]>([]);
   useEffect(() => {
     api
       .importSources()
-      .then((s) =>
-        setServices(
-          s.cobalt.services
-            // X posts go through Abacus's own importer.
-            .filter((name) => name !== 'twitter')
-            .map((name) => SERVICE_NAMES[name] || name.replace(/^./, (c) => c.toUpperCase()))
-            .sort((a, b) => a.localeCompare(b))
-        )
-      )
+      .then((s) => setProviders(s.providers.filter((p) => p.sites.length)))
       .catch(() => {});
   }, []);
-  return services;
+  return providers;
 }
 
 function BookmarkletTab({ folderId }: { folderId: string }) {

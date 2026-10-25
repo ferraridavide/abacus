@@ -3,7 +3,7 @@ import { newId, mapLimit } from './util.js';
 import { extractTweets, importTweet } from './importers/x.js';
 import { extractUrls, importUrl } from './importers/web.js';
 import { ensureFolder, importBlock } from './importers/arena.js';
-import { CobaltUnsupported, cobaltEnabled, importWithCobalt } from './importers/cobalt.js';
+import { importWithProviders } from './providers/index.js';
 
 const jobs = new Map();
 const MAX_JOBS = 50;
@@ -80,16 +80,9 @@ function runJob(targets, work, { onDone } = {}) {
   return job;
 }
 
-/** Import a non-X link: through cobalt when it supports the site, else as a direct file or web page. */
+/** Import a non-X link: through an import provider that supports the site, else as a direct file or web page. */
 async function importLink(url, opts) {
-  if (cobaltEnabled()) {
-    try {
-      return await importWithCobalt(url, opts);
-    } catch (err) {
-      if (!(err instanceof CobaltUnsupported)) throw err;
-    }
-  }
-  return importUrl(url, opts);
+  return (await importWithProviders(url, opts)) || importUrl(url, opts);
 }
 
 export function startImport({ text, folderId, tags = [] }) {

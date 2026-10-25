@@ -6,7 +6,7 @@ import { newId, VIDEO_EXTS } from './util.js';
 import * as lib from './library.js';
 import { startImport, startArenaImport, getJob } from './jobs.js';
 import { readArenaZip } from './importers/arena.js';
-import { cobaltInfo } from './importers/cobalt.js';
+import { activeProviders, listProviderSettings, testProvider, updateProvider } from './providers/index.js';
 
 const notFound = (reply) => reply.code(404).send({ error: 'Not found' });
 
@@ -110,7 +110,7 @@ export async function routes(app) {
     }
   });
 
-  // ---------- import (X links, cobalt-supported sites, image URLs, web pages) ----------
+  // ---------- import (X links, import providers, image URLs, web pages) ----------
   app.post('/api/import', async (req, reply) => {
     const { text, urls, folderId, tags } = req.body || {};
     const job = startImport({ text: [text, ...(urls || [])].filter(Boolean).join('\n'), folderId, tags });
@@ -145,10 +145,16 @@ export async function routes(app) {
     return startArenaImport(channels, { parentId, onDone: () => fs.rmSync(tmp, { force: true }) });
   });
 
-  // Which extra sites link imports support (through cobalt, when configured).
-  app.get('/api/import/sources', async () => ({ cobalt: await cobaltInfo() }));
+  // Enabled import providers and the sites they add to link imports.
+  app.get('/api/import/sources', async () => ({ providers: await activeProviders() }));
 
   app.get('/api/jobs/:id', async (req, reply) => getJob(req.params.id) || notFound(reply));
+
+  // ---------- settings (import providers) ----------
+  app.get('/api/settings/providers', async () => listProviderSettings());
+  app.patch('/api/settings/providers/:id', async (req) => updateProvider(req.params.id, req.body || {}));
+  // Checks the given (unsaved) values; missing values fall back to the saved ones.
+  app.post('/api/settings/providers/:id/test', async (req) => testProvider(req.params.id, req.body?.values));
 
   // ---------- bookmarklet landing page ----------
   app.get('/quick-add', async (req, reply) => {

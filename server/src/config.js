@@ -14,10 +14,6 @@ export const config = {
   authPassword: process.env.AUTH_PASSWORD || '',
   maxDownloadBytes: Number(process.env.MAX_DOWNLOAD_MB || 1024) * 1024 * 1024,
   importConcurrency: Number(process.env.IMPORT_CONCURRENCY || 3),
-  // Optional cobalt instance (https://github.com/imputnet/cobalt) for YouTube, TikTok, Instagram, etc.
-  cobaltUrl: (process.env.COBALT_URL || '').replace(/\/+$/, ''),
-  cobaltApiKey: process.env.COBALT_API_KEY || '',
-  cobaltVideoQuality: process.env.COBALT_VIDEO_QUALITY || '1080',
 };
 
 export const paths = {

@@ -13,30 +13,6 @@ services:
       # AUTH_PASSWORD: change-me
       IMPORT_CONCURRENCY: 3
       MAX_DOWNLOAD_MB: 1024
-      # cobalt downloads media from YouTube, TikTok, Instagram, Reddit, and other sites.
-      # Remove this line (and the cobalt service) to import those links as plain web pages.
-      COBALT_URL: http://cobalt:9000/
-    depends_on:
-      - cobalt
-    restart: unless-stopped
-
-  # Media downloader used by link imports: https://github.com/imputnet/cobalt
-  # It's only reachable by Abacus on the compose network; no port is published.
-  cobalt:
-    image: ghcr.io/imputnet/cobalt:11
-    container_name: abacus-cobalt
-    init: true
-    read_only: true
-    environment:
-      # Tunnel URLs that cobalt hands out point here, so it must be reachable from the abacus container.
-      API_URL: http://cobalt:9000/
-      # Abacus is the only client, so lift the per-IP rate limits that protect public instances.
-      RATELIMIT_MAX: 1000
-      TUNNEL_RATELIMIT_MAX: 1000
-      # Uncomment (with the volume below) for services that need a login to view public posts:
-      # COOKIE_PATH: /cookies.json
-    # volumes:
-    #   - ./cookies.json:/cookies.json:ro
     restart: unless-stopped
 
 volumes:

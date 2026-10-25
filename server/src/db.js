@@ -1,5 +1,7 @@
+import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { paths } from './config.js';
+import { probeMp4 } from './media.js';
 
 export const db = new DatabaseSync(paths.db);
 
@@ -73,6 +75,11 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_item_colors_item ON item_colors(item_id);
   CREATE INDEX IF NOT EXISTS idx_items_list ON items(deleted_at, created_at);
+
+  CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL                   -- JSON
+  );
 `);
 
 // v1 -> v2: backfill item_colors from the palette JSON column
@@ -87,6 +94,22 @@ if (db.prepare('PRAGMA user_version').get().user_version < 2) {
     }
   }
   db.exec('PRAGMA user_version = 2');
+  db.exec('COMMIT');
+}
+
+// v2 -> v3: size videos by their files; cobalt imports used the poster's size, or none
+if (db.prepare('PRAGMA user_version').get().user_version < 3) {
+  const upd = db.prepare('UPDATE items SET width = ?, height = ?, duration = COALESCE(duration, ?) WHERE id = ?');
+  db.exec('BEGIN');
+  for (const row of db
+    .prepare("SELECT id, file, width, height FROM items WHERE type IN ('video', 'gif') AND ext IN ('mp4', 'mov', 'm4v') AND file IS NOT NULL")
+    .all()) {
+    const probe = probeMp4(path.join(paths.files, row.file));
+    if (probe && (probe.width !== row.width || probe.height !== row.height)) {
+      upd.run(probe.width, probe.height, probe.duration, row.id);
+    }
+  }
+  db.exec('PRAGMA user_version = 3');
   db.exec('COMMIT');
 }
 
