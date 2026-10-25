@@ -2731,6 +2731,19 @@ a {
   .context-menu {
     z-index: 250;
   }
+  /* iOS 26 blurs whatever sits under the status bar in home screen apps, unless it finds a
+     fixed, solid bar at the top. --toolbar-h is measured in Toolbar.tsx. */
+  .toolbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg);
+    backdrop-filter: none;
+  }
+  .main {
+    padding-top: var(--toolbar-h, 56px);
+  }
 }
 
 /* ---------------- phones: full-screen dialogs, two-row toolbar ---------------- */

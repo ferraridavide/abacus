@@ -64,8 +64,19 @@ export function Toolbar() {
   const trashCount = useStore((s) => s.stats.trash);
   const { setQuery, setFilters, setLayout, setThumbSize, set, ask, refresh } = useStore.getState();
   const searchRef = useRef<HTMLInputElement>(null);
+  const toolbarRef = useRef<HTMLElement>(null);
   const compact = useCompact();
   const phone = usePhone();
+
+  // on narrow screens the toolbar is fixed (see styles.css); the main column keeps room for it
+  useEffect(() => {
+    const el = toolbarRef.current!;
+    const ro = new ResizeObserver(() =>
+      document.documentElement.style.setProperty('--toolbar-h', `${el.offsetHeight}px`),
+    );
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -96,7 +107,7 @@ export function Toolbar() {
     filters.types.length + (filters.source ? 1 : 0) + (filters.rating ? 1 : 0) + (filters.color ? 1 : 0);
 
   return (
-    <header className="toolbar">
+    <header className="toolbar" ref={toolbarRef}>
       {compact && (
         <button className="icon-btn menu-btn" title="Folders and tags" onClick={() => set({ sidebarOpen: true })}>
           <Menu size={19} />
