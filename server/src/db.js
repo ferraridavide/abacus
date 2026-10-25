@@ -82,6 +82,27 @@ db.exec(`
   );
 `);
 
+// Colour search: a real histogram (OKLab bins of the actual pixels), not just
+// the handful of dominant swatches. Searched via item_color_bins. Idempotent,
+// so it isn't tied to user_version; existing items are indexed in the
+// background by backfillColorHistograms().
+try {
+  db.exec('ALTER TABLE items ADD COLUMN color_hist TEXT');
+} catch {
+  /* column already exists */
+}
+db.exec(`
+  CREATE TABLE IF NOT EXISTS item_color_bins (
+    item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    l INTEGER NOT NULL,
+    a INTEGER NOT NULL,
+    b INTEGER NOT NULL,
+    w REAL NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_color_bins_lab ON item_color_bins(l, a, b);
+  CREATE INDEX IF NOT EXISTS idx_color_bins_item ON item_color_bins(item_id);
+`);
+
 // v1 -> v2: backfill item_colors from the palette JSON column
 if (db.prepare('PRAGMA user_version').get().user_version < 2) {
   const ins = db.prepare('INSERT INTO item_colors (item_id, r, g, b, ratio) VALUES (?, ?, ?, ?, ?)');

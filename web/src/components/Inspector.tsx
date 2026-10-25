@@ -91,7 +91,7 @@ function SingleInspector({ item }: { item: Item }) {
               key={p.hex}
               className="swatch"
               style={{ background: p.hex, flexGrow: Math.max(0.6, p.ratio * 10) }}
-              title={`${p.hex} · ${Math.round(p.ratio * 100)}% — click to find similar colours, ⌥-click to copy`}
+              title={`${p.hex} · ${Math.round(p.ratio * 100)}% — click to search this colour, ⌥-click to copy`}
               onClick={(e) => {
                 if (e.altKey) {
                   navigator.clipboard?.writeText(p.hex);
