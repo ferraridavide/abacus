@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+import { histogramFromRgb, encodeHistogram } from './color.js';
 
 sharp.cache(false);
 
@@ -110,6 +111,35 @@ export async function extractPalette(buffer, k = 6) {
       .map((m) => ({ hex: toHex(m.c), ratio: Math.round((m.count / n) * 1000) / 1000 }));
   } catch {
     return [];
+  }
+}
+
+/**
+ * Histogram of the colours that are actually in the image, in OKLab.
+ * Samples the real pixels (alpha-weighted, so a transparent PNG doesn't pick
+ * up its empty background) rather than collapsing to a few dominant tags.
+ * Returns a JSON string ready for the color_hist column, or null.
+ */
+export async function extractHistogram(buffer) {
+  try {
+    const { data, info } = await sharp(buffer, { animated: false, limitInputPixels: false })
+      .rotate()
+      .resize(128, 128, { fit: 'inside' })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const n = info.width * info.height;
+    const rgb = [];
+    for (let i = 0; i < n; i++) {
+      const a = data[i * 4 + 3];
+      if (a < 16) continue; // ignore fully transparent pixels
+      rgb.push(data[i * 4], data[i * 4 + 1], data[i * 4 + 2]);
+    }
+    if (!rgb.length) return null;
+    const bins = histogramFromRgb(rgb);
+    return bins.length ? encodeHistogram(bins) : null;
+  } catch {
+    return null;
   }
 }
 
