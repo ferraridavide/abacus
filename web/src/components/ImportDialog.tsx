@@ -1,12 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Bookmark, Globe, Grid2x2, Link2, Upload, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Bookmark, Globe, Grid2x2, Link2, Upload } from 'lucide-react';
 import { api } from '../api';
 import { useStore, currentFolderId } from '../store';
 import type { Folder } from '../types';
 import { countLinks } from '../lib/format';
-import { cls, Modal, XLogo } from './ui';
+import { cls, DialogHead, Modal, PageLink, usePhone, XLogo } from './ui';
 
 type Tab = 'links' | 'files' | 'arena' | 'bookmarklet';
+
+const TABS: { key: Tab; label: string; desc: string; icon: ReactNode }[] = [
+  { key: 'links', label: 'Links', desc: 'X posts, image and video URLs, web pages', icon: <Link2 size={14} /> },
+  { key: 'files', label: 'Files', desc: 'Photos, videos and other files from this device', icon: <Upload size={14} /> },
+  { key: 'arena', label: 'Are.na', desc: 'A channel export (.zip)', icon: <Grid2x2 size={14} /> },
+  { key: 'bookmarklet', label: 'Bookmarklet', desc: 'Save pages from any browser', icon: <Bookmark size={14} /> },
+];
 
 export function ImportDialog() {
   const open = useStore((s) => s.importOpen);
@@ -17,7 +24,10 @@ export function ImportDialog() {
 function ImportDialogInner() {
   const view = useStore((s) => s.view);
   const { set, importText, uploadFiles } = useStore.getState();
-  const [tab, setTab] = useState<Tab>('links');
+  const phone = usePhone();
+  // phones start on the list of import methods, one page each; wider screens show them as tabs
+  const [picked, setTab] = useState<Tab | null>(null);
+  const tab = picked ?? (phone ? null : 'links');
   const [text, setText] = useState('');
   const [folderId, setFolderId] = useState(currentFolderId(view) || '');
   const [busy, setBusy] = useState(false);
@@ -43,30 +53,34 @@ function ImportDialogInner() {
   };
 
   return (
-    <Modal onClose={close} className="import-modal">
-      <div className="modal-head">
-        <h2>Import</h2>
-        <button className="icon-btn" onClick={close}>
-          <X size={18} />
-        </button>
-      </div>
-      <div className="tabs">
-        <button className={cls(tab === 'links' && 'on')} onClick={() => setTab('links')}>
-          <Link2 size={14} /> Links
-        </button>
-        <button className={cls(tab === 'files' && 'on')} onClick={() => setTab('files')}>
-          <Upload size={14} /> Files
-        </button>
-        <button className={cls(tab === 'arena' && 'on')} onClick={() => setTab('arena')}>
-          <Grid2x2 size={14} /> Are.na
-        </button>
-        <button className={cls(tab === 'bookmarklet' && 'on')} onClick={() => setTab('bookmarklet')}>
-          <Bookmark size={14} /> Bookmarklet
-        </button>
-      </div>
+    <Modal onClose={close} className="import-modal page">
+      <DialogHead
+        title={phone && tab ? TABS.find((t) => t.key === tab)?.label : 'Import'}
+        onBack={phone && tab ? () => setTab(null) : undefined}
+        onClose={close}
+      />
+      {!phone && (
+        <div className="tabs">
+          {TABS.map((t) => (
+            <button key={t.key} className={cls(tab === t.key && 'on')} onClick={() => setTab(t.key)}>
+              {t.icon} {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!tab && (
+        <div className="modal-body">
+          <div className="page-links">
+            {TABS.map((t) => (
+              <PageLink key={t.key} icon={t.icon} label={t.label} desc={t.desc} onClick={() => setTab(t.key)} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {tab === 'links' && (
-        <div className="modal-body">
+        <div className="modal-body page-enter">
           <p className="hint">
             Paste X post links (one or many — any text works, links are detected automatically). Photos, videos and
             GIFs are downloaded in full quality; text-only posts are saved as cards. Direct image/video URLs and web
@@ -79,7 +93,7 @@ function ImportDialogInner() {
           )}
           <textarea
             className="links-input"
-            autoFocus
+            autoFocus={!phone}
             value={text}
             spellCheck={false}
             placeholder={'https://x.com/someone/status/1234567890\nhttps://twitter.com/another/status/9876543210\nhttps://example.com/photo.jpg'}
@@ -101,7 +115,7 @@ function ImportDialogInner() {
       )}
 
       {tab === 'files' && (
-        <div className="modal-body">
+        <div className="modal-body page-enter">
           <div
             className={cls('dropzone', dragOver && 'over')}
             onClick={() => fileRef.current?.click()}
@@ -119,16 +133,18 @@ function ImportDialogInner() {
             }}
           >
             <Upload size={28} strokeWidth={1.5} />
-            <div className="dz-title">Drop files here or click to browse</div>
+            <div className="dz-title">{phone ? 'Choose files' : 'Drop files here or click to browse'}</div>
             <div className="dz-sub">Images, GIFs, videos, SVG, and any other file</div>
             <input ref={fileRef} type="file" multiple hidden onChange={(e) => onFiles(e.target.files)} />
           </div>
-          <p className="hint small">Tip: you can also drop files anywhere in the window, or paste images with ⌘V.</p>
+          {!phone && (
+            <p className="hint small">Tip: you can also drop files anywhere in the window, or paste images with ⌘V.</p>
+          )}
         </div>
       )}
 
       {tab === 'arena' && (
-        <div className="modal-body">
+        <div className="modal-body page-enter">
           <p className="hint">
             On Are.na, open a channel → ⋯ → <b>Export</b>, then drop the .zip here. Each channel becomes a folder
             {folderId ? ' inside the selected one' : ''}; titles, descriptions, source links and dates are kept, and
@@ -151,8 +167,8 @@ function ImportDialogInner() {
             }}
           >
             <Grid2x2 size={28} strokeWidth={1.5} />
-            <div className="dz-title">Drop an Are.na export (.zip)</div>
-            <div className="dz-sub">or click to choose one — you can also drop it anywhere in the window</div>
+            <div className="dz-title">{phone ? 'Choose an Are.na export (.zip)' : 'Drop an Are.na export (.zip)'}</div>
+            {!phone && <div className="dz-sub">or click to choose one — you can also drop it anywhere in the window</div>}
             <input ref={zipRef} type="file" accept=".zip,application/zip" multiple hidden onChange={(e) => onFiles(e.target.files)} />
           </div>
         </div>
@@ -231,7 +247,7 @@ function BookmarkletTab({ folderId }: { folderId: string }) {
     ref.current?.setAttribute('href', code);
   }, [code]);
   return (
-    <div className="modal-body">
+    <div className="modal-body page-enter">
       <p className="hint">
         Drag this button to your bookmarks bar. While viewing an X post, a video, or any page or image, click it to
         save it straight into Abacus — no extension needed.

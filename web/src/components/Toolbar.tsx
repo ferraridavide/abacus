@@ -3,6 +3,7 @@ import {
   ArrowDownWideNarrow,
   ArrowUpNarrowWide,
   Check,
+  ChevronDown,
   Columns3,
   Download,
   Folder as FolderIcon,
@@ -11,9 +12,11 @@ import {
   Inbox,
   LayoutGrid,
   ListFilter,
+  Menu,
   PanelRight,
   Rows3,
   Search,
+  SlidersHorizontal,
   Star,
   Tag,
   Trash2,
@@ -22,7 +25,7 @@ import {
 import { api } from '../api';
 import { useStore } from '../store';
 import type { ItemType, LayoutMode, SortKey } from '../types';
-import { cls, Kbd, Popover, XLogo } from './ui';
+import { cls, Kbd, Popover, useCompact, usePhone, XLogo } from './ui';
 
 const SORTS: { key: SortKey; label: string }[] = [
   { key: 'created', label: 'Date added' },
@@ -58,10 +61,11 @@ export function Toolbar() {
   const layout = useStore((s) => s.layout);
   const thumbSize = useStore((s) => s.thumbSize);
   const inspectorOpen = useStore((s) => s.inspectorOpen);
-  const showInfo = useStore((s) => s.showInfo);
   const trashCount = useStore((s) => s.stats.trash);
-  const { setQuery, setFilters, setSort, setLayout, setThumbSize, set, ask, refresh } = useStore.getState();
+  const { setQuery, setFilters, setLayout, setThumbSize, set, ask, refresh } = useStore.getState();
   const searchRef = useRef<HTMLInputElement>(null);
+  const compact = useCompact();
+  const phone = usePhone();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -93,10 +97,21 @@ export function Toolbar() {
 
   return (
     <header className="toolbar">
-      <div className="view-title">
+      {compact && (
+        <button className="icon-btn menu-btn" title="Folders and tags" onClick={() => set({ sidebarOpen: true })}>
+          <Menu size={19} />
+        </button>
+      )}
+      {/* with no inspector beside the grid, the title opens the folder's or library's details */}
+      <div
+        className={cls('view-title', compact && 'clickable')}
+        role={compact ? 'button' : undefined}
+        onClick={compact ? () => set({ details: 'view' }) : undefined}
+      >
         <span className="view-icon">{icon}</span>
         <h1>{title}</h1>
         <span className="view-count">{count.toLocaleString()}</span>
+        {compact && <ChevronDown size={14} className="dim" />}
       </div>
 
       <div className="search">
@@ -205,68 +220,79 @@ export function Toolbar() {
           )}
         </Popover>
 
-        <Popover
-          align="right"
-          width={210}
-          trigger={(open, toggle) => (
-            <button className={cls('tool-btn', open && 'active')} onClick={toggle} title="Sort">
-              {sort.dir === 'desc' ? <ArrowDownWideNarrow size={15} /> : <ArrowUpNarrowWide size={15} />}
-              <span>{SORTS.find((s) => s.key === sort.by)?.label}</span>
-            </button>
-          )}
-        >
-          {(close) => (
-            <div className="menu-list">
-              <div className="menu-label">Sort by</div>
-              {SORTS.map((s) => (
-                <button
-                  key={s.key}
-                  className="menu-item"
-                  onClick={() => {
-                    setSort({ by: s.key });
-                    close();
-                  }}
-                >
-                  <span className="check-slot">{sort.by === s.key && <Check size={14} />}</span>
-                  {s.label}
+        {phone ? (
+          <Popover
+            align="right"
+            trigger={(open, toggle) => (
+              <button className={cls('tool-btn', open && 'active')} onClick={toggle} title="View options">
+                <SlidersHorizontal size={15} />
+              </button>
+            )}
+          >
+            {(close) => (
+              <div className="menu-list">
+                <div className="menu-label">Layout</div>
+                <div className="segmented full">
+                  {LAYOUTS.map((l) => (
+                    <button key={l.key} className={cls(layout === l.key && 'on')} onClick={() => setLayout(l.key)}>
+                      {l.icon} {l.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="menu-label">Thumbnail size</div>
+                <input
+                  className="size-slider full"
+                  type="range"
+                  min={80}
+                  max={400}
+                  step={10}
+                  value={thumbSize}
+                  onChange={(e) => setThumbSize(Number(e.target.value))}
+                />
+                <div className="menu-sep" />
+                <SortOptions close={close} />
+              </div>
+            )}
+          </Popover>
+        ) : (
+          <>
+            <Popover
+              align="right"
+              width={210}
+              trigger={(open, toggle) => (
+                <button className={cls('tool-btn', open && 'active')} onClick={toggle} title="Sort">
+                  {sort.dir === 'desc' ? <ArrowDownWideNarrow size={15} /> : <ArrowUpNarrowWide size={15} />}
+                  <span>{SORTS.find((s) => s.key === sort.by)?.label}</span>
+                </button>
+              )}
+            >
+              {(close) => (
+                <div className="menu-list">
+                  <SortOptions close={close} />
+                </div>
+              )}
+            </Popover>
+
+            <div className="segmented">
+              {LAYOUTS.map((l) => (
+                <button key={l.key} className={cls(layout === l.key && 'on')} title={l.label} onClick={() => setLayout(l.key)}>
+                  {l.icon}
                 </button>
               ))}
-              <div className="menu-sep" />
-              <div className="segmented full">
-                <button className={cls(sort.dir === 'desc' && 'on')} onClick={() => setSort({ dir: 'desc' })}>
-                  Descending
-                </button>
-                <button className={cls(sort.dir === 'asc' && 'on')} onClick={() => setSort({ dir: 'asc' })}>
-                  Ascending
-                </button>
-              </div>
-              <div className="menu-sep" />
-              <button className="menu-item" onClick={() => set({ showInfo: !showInfo })}>
-                <span className={cls('checkbox', showInfo && 'on')}>{showInfo && <Check size={11} />}</span>
-                Show names & info
-              </button>
             </div>
-          )}
-        </Popover>
 
-        <div className="segmented">
-          {LAYOUTS.map((l) => (
-            <button key={l.key} className={cls(layout === l.key && 'on')} title={l.label} onClick={() => setLayout(l.key)}>
-              {l.icon}
-            </button>
-          ))}
-        </div>
-
-        <input
-          className="size-slider"
-          type="range"
-          min={120}
-          max={520}
-          step={10}
-          value={thumbSize}
-          title="Thumbnail size"
-          onChange={(e) => setThumbSize(Number(e.target.value))}
-        />
+            <input
+              className="size-slider"
+              type="range"
+              min={120}
+              max={520}
+              step={10}
+              value={thumbSize}
+              title="Thumbnail size"
+              onChange={(e) => setThumbSize(Number(e.target.value))}
+            />
+          </>
+        )}
 
         {view.kind === 'trash' && trashCount > 0 && (
           <button
@@ -291,14 +317,55 @@ export function Toolbar() {
         <button className="btn primary" onClick={() => set({ importOpen: true })}>
           <Download size={15} /> <span>Import</span>
         </button>
-        <button
-          className={cls('icon-btn', inspectorOpen && 'active')}
-          title="Toggle inspector"
-          onClick={() => set({ inspectorOpen: !inspectorOpen })}
-        >
-          <PanelRight size={17} />
-        </button>
+        {!compact && (
+          <button
+            className={cls('icon-btn', inspectorOpen && 'active')}
+            title="Toggle inspector"
+            onClick={() => set({ inspectorOpen: !inspectorOpen })}
+          >
+            <PanelRight size={17} />
+          </button>
+        )}
       </div>
     </header>
+  );
+}
+
+/** Sort key and direction, and whether cards show their names. */
+function SortOptions({ close }: { close: () => void }) {
+  const sort = useStore((s) => s.sort);
+  const showInfo = useStore((s) => s.showInfo);
+  const { setSort, set } = useStore.getState();
+  return (
+    <>
+      <div className="menu-label">Sort by</div>
+      {SORTS.map((s) => (
+        <button
+          key={s.key}
+          className="menu-item"
+          onClick={() => {
+            setSort({ by: s.key });
+            close();
+          }}
+        >
+          <span className="check-slot">{sort.by === s.key && <Check size={14} />}</span>
+          {s.label}
+        </button>
+      ))}
+      <div className="menu-sep" />
+      <div className="segmented full">
+        <button className={cls(sort.dir === 'desc' && 'on')} onClick={() => setSort({ dir: 'desc' })}>
+          Descending
+        </button>
+        <button className={cls(sort.dir === 'asc' && 'on')} onClick={() => setSort({ dir: 'asc' })}>
+          Ascending
+        </button>
+      </div>
+      <div className="menu-sep" />
+      <button className="menu-item" onClick={() => set({ showInfo: !showInfo })}>
+        <span className={cls('checkbox', showInfo && 'on')}>{showInfo && <Check size={11} />}</span>
+        Show names & info
+      </button>
+    </>
   );
 }

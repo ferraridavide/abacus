@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft, ChevronRight, Download, ExternalLink, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, ExternalLink, Info, X } from 'lucide-react';
 import { useStore } from '../store';
 import type { Item } from '../types';
 import { itemMeta } from '../lib/format';
 import { BookmarkFace } from './Card';
+import { useCompact } from './ui';
 
 export function Viewer() {
   const viewerId = useStore((s) => s.viewerId);
   const items = useStore((s) => s.items);
   const set = useStore((s) => s.set);
+  const compact = useCompact();
+  const swipe = useRef<{ x: number; y: number } | null>(null);
   const index = items.findIndex((i) => i.id === viewerId);
   const item = index >= 0 ? items[index] : null;
 
@@ -18,6 +21,7 @@ export function Viewer() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.closest('input, textarea')) return;
       const s = useStore.getState();
+      if (s.details) return; // the details sheet is on top
       const idx = s.items.findIndex((i) => i.id === s.viewerId);
       if (e.key === 'Escape' || e.key === ' ') {
         e.preventDefault();
@@ -60,6 +64,15 @@ export function Viewer() {
           </span>
         </div>
         <div className="viewer-actions">
+          {compact && (
+            <button
+              className="icon-btn"
+              title="Details"
+              onClick={() => set({ selected: new Set([item.id]), anchor: item.id, details: 'selection' })}
+            >
+              <Info size={18} />
+            </button>
+          )}
           {item.url && (
             <a className="icon-btn" href={item.url} target="_blank" rel="noreferrer" title="Open source">
               <ExternalLink size={17} />
@@ -75,7 +88,21 @@ export function Viewer() {
           </button>
         </div>
       </div>
-      <div className="viewer-stage" onClick={(e) => e.target === e.currentTarget && set({ viewerId: null })}>
+      <div
+        className="viewer-stage"
+        onClick={(e) => e.target === e.currentTarget && set({ viewerId: null })}
+        // swipe sideways for the next or previous item
+        onPointerDown={(e) => {
+          swipe.current = e.pointerType === 'touch' ? { x: e.clientX, y: e.clientY } : null;
+        }}
+        onPointerUp={(e) => {
+          const start = swipe.current;
+          swipe.current = null;
+          if (!start) return;
+          const dx = e.clientX - start.x;
+          if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(e.clientY - start.y) * 1.5) go(dx < 0 ? 1 : -1);
+        }}
+      >
         <ViewerMedia key={item.id} item={item} />
       </div>
       {index > 0 && (

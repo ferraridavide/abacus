@@ -5,11 +5,11 @@ import type { Item } from '../types';
 import { computeLayout, type Box } from '../lib/layout';
 import { dragKind, dropOnFolder, ITEM_MIME, setItemDragImage } from '../lib/dnd';
 import { Card } from './Card';
-import { cls, XLogo } from './ui';
+import { cls, useMediaQuery, XLogo } from './ui';
 
 const OVERSCAN = 900;
 const STEP = 300;
-const PAD = 22;
+const LONG_PRESS = 450;
 
 export function Grid() {
   const items = useStore((s) => s.items);
@@ -29,7 +29,8 @@ export function Grid() {
   useLayoutEffect(() => {
     const el = scrollRef.current!;
     const measure = () => {
-      setWidth(el.clientWidth - PAD * 2);
+      const cs = getComputedStyle(el);
+      setWidth(el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
       setViewport((v) => ({ ...v, height: el.clientHeight }));
     };
     measure(); // don't wait for the first ResizeObserver callback (it never fires in a background tab)
@@ -77,9 +78,46 @@ export function Grid() {
   }, [viewport, height, offsetTop, items.length, total, width]);
 
   // ----- interactions -----
+  // Touch works like a phone's photo library: a tap opens the viewer, a long press starts a selection,
+  // and while something is selected taps add to it or take away from it.
+  const fine = useMediaQuery('(pointer: fine)');
+  const pointerType = useRef('mouse');
+  const press = useRef<{ timer: ReturnType<typeof setTimeout>; x: number; y: number } | null>(null);
+  const pressed = useRef(false);
+
+  const cancelPress = () => {
+    if (press.current) clearTimeout(press.current.timer);
+    press.current = null;
+  };
+  const onPointerDown = (e: React.PointerEvent) => {
+    pointerType.current = e.pointerType;
+    pressed.current = false;
+    cancelPress();
+    const id = (e.target as HTMLElement).closest<HTMLElement>('.card')?.dataset.id;
+    if (e.pointerType === 'mouse' || !id) return;
+    const timer = setTimeout(() => {
+      press.current = null;
+      pressed.current = true;
+      const s = useStore.getState();
+      if (!s.selected.has(id)) s.select(id, 'toggle');
+      navigator.vibrate?.(10);
+    }, LONG_PRESS);
+    press.current = { timer, x: e.clientX, y: e.clientY };
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const p = press.current;
+    if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 10) cancelPress();
+  };
+
   const onCardClick = useCallback((e: React.MouseEvent, item: Item) => {
     e.stopPropagation();
-    const { select } = useStore.getState();
+    const { select, set, selected } = useStore.getState();
+    if (pointerType.current !== 'mouse') {
+      if (pressed.current) pressed.current = false; // the click that ends a long press
+      else if (selected.size) select(item.id, 'toggle');
+      else set({ viewerId: item.id });
+      return;
+    }
     if (e.metaKey || e.ctrlKey) select(item.id, 'toggle');
     else if (e.shiftKey) select(item.id, 'range');
     else select(item.id, 'single');
@@ -90,6 +128,7 @@ export function Grid() {
   const onCardContext = useCallback((e: React.MouseEvent, item: Item) => {
     e.preventDefault();
     e.stopPropagation();
+    if (pointerType.current !== 'mouse') return; // a long press selects instead
     const s = useStore.getState();
     if (!s.selected.has(item.id)) s.select(item.id, 'single');
     s.set({ contextMenu: { x: e.clientX, y: e.clientY, kind: 'item', id: item.id } });
@@ -111,7 +150,7 @@ export function Grid() {
 
   // rubber-band selection
   const onMouseDown = (e: React.MouseEvent) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || pointerType.current !== 'mouse') return;
     const scroller = scrollRef.current!;
     if ((e.target as HTMLElement).closest('.card, .subfolder')) return;
     if (e.nativeEvent.offsetX > scroller.clientWidth && e.target === scroller) return; // scrollbar
@@ -170,7 +209,17 @@ export function Grid() {
   const fit = layout === 'grid' ? 'contain' : 'cover';
 
   return (
-    <div className="grid-scroll" ref={scrollRef} onScroll={onScroll} onMouseDown={onMouseDown} onContextMenu={onGridContext}>
+    <div
+      className="grid-scroll"
+      ref={scrollRef}
+      onScroll={onScroll}
+      onMouseDown={onMouseDown}
+      onContextMenu={onGridContext}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={cancelPress}
+      onPointerCancel={cancelPress}
+    >
       <SubfolderStrip />
       <div className="grid-content" ref={contentRef} style={{ height: Math.max(height, 0) }}>
         {visible.map((i) => (
@@ -182,6 +231,7 @@ export function Grid() {
             showInfo={showInfo}
             captionH={captionH}
             fit={fit}
+            draggable={fine}
             onClick={onCardClick}
             onDoubleClick={onCardDouble}
             onContextMenu={onCardContext}
