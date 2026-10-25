@@ -13,6 +13,7 @@ interface Props {
   showInfo: boolean;
   captionH: number;
   fit: 'cover' | 'contain';
+  draggable: boolean;
   onClick: (e: React.MouseEvent, item: Item) => void;
   onDoubleClick: (item: Item) => void;
   onContextMenu: (e: React.MouseEvent, item: Item) => void;
@@ -26,6 +27,7 @@ export const Card = memo(function Card({
   showInfo,
   captionH,
   fit,
+  draggable,
   onClick,
   onDoubleClick,
   onContextMenu,
@@ -58,7 +60,7 @@ export const Card = memo(function Card({
       className={cls('card', selected && 'selected', `t-${item.type}`)}
       style={{ transform: `translate3d(${box.x}px, ${box.y}px, 0)`, width: box.w, height: box.h }}
       data-id={item.id}
-      draggable
+      draggable={draggable}
       onDragStart={(e) => onDragStart(e, item)}
       onClick={(e) => onClick(e, item)}
       onDoubleClick={() => onDoubleClick(item)}

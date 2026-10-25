@@ -1,13 +1,15 @@
 import { useState, type ReactNode } from 'react';
-import { MousePointer2, PauseCircle, PlayCircle, Play, X } from 'lucide-react';
+import { CloudDownload, MousePointer2, PauseCircle, PlayCircle, Play } from 'lucide-react';
 import { useStore } from '../store';
 import type { AutoplayMode } from '../types';
-import { cls, Modal } from './ui';
+import { ImportSourcesSettings, ProviderDetail, useProviderSettings } from './ProviderSettings';
+import { cls, DialogHead, Modal, PageLink, usePhone } from './ui';
 
-type Section = 'playback';
+type Section = 'playback' | 'sources';
 
-const SECTIONS: { key: Section; label: string; icon: ReactNode }[] = [
-  { key: 'playback', label: 'Playback', icon: <Play size={15} /> },
+const SECTIONS: { key: Section; label: string; desc: string; icon: ReactNode }[] = [
+  { key: 'playback', label: 'Playback', desc: 'Autoplay of videos and GIFs', icon: <Play size={15} /> },
+  { key: 'sources', label: 'Import sources', desc: 'Providers that download media', icon: <CloudDownload size={15} /> },
 ];
 
 export function SettingsDialog() {
@@ -16,30 +18,58 @@ export function SettingsDialog() {
   return <SettingsInner />;
 }
 
+/**
+ * Settings are pages: sections, then a provider inside "Import sources". Wider screens keep the
+ * section list beside the page; phones show one page at a time, starting from the section list.
+ */
 function SettingsInner() {
   const set = useStore((s) => s.set);
-  const [section, setSection] = useState<Section>('playback');
+  const phone = usePhone();
+  const [picked, setPicked] = useState<Section | null>(null);
+  const [providerId, setProviderId] = useState<string | null>(null);
+  const providers = useProviderSettings();
+  const section = picked ?? (phone ? null : 'playback');
+  const provider = section === 'sources' ? providers.list?.find((p) => p.id === providerId) : undefined;
   const close = () => set({ settingsOpen: false });
+  const open = (key: Section) => {
+    setPicked(key);
+    setProviderId(null);
+  };
+
+  const title = provider?.name ?? SECTIONS.find((s) => s.key === section)?.label ?? 'Settings';
+  const back = provider ? () => setProviderId(null) : phone && section ? () => setPicked(null) : undefined;
 
   return (
-    <Modal onClose={close} className="settings-modal">
-      <nav className="settings-nav">
-        <div className="settings-heading">Settings</div>
-        {SECTIONS.map((s) => (
-          <button key={s.key} className={cls('nav-row', section === s.key && 'active')} onClick={() => setSection(s.key)}>
-            <span className="nav-icon">{s.icon}</span>
-            <span className="nav-label">{s.label}</span>
-          </button>
-        ))}
-      </nav>
+    <Modal onClose={close} className="settings-modal page">
+      {!phone && (
+        <nav className="settings-nav">
+          <div className="settings-heading">Settings</div>
+          {SECTIONS.map((s) => (
+            <button key={s.key} className={cls('nav-row', section === s.key && 'active')} onClick={() => open(s.key)}>
+              <span className="nav-icon">{s.icon}</span>
+              <span className="nav-label">{s.label}</span>
+            </button>
+          ))}
+        </nav>
+      )}
       <div className="settings-main">
-        <div className="modal-head">
-          <h2>{SECTIONS.find((s) => s.key === section)?.label}</h2>
-          <button className="icon-btn" onClick={close} title="Close (Esc)">
-            <X size={18} />
-          </button>
+        <DialogHead title={title} onBack={back} onClose={close} />
+        <div className="settings-body page-enter" key={`${section}/${provider?.id ?? ''}`}>
+          {!section && (
+            <div className="page-links">
+              {SECTIONS.map((s) => (
+                <PageLink key={s.key} icon={s.icon} label={s.label} desc={s.desc} onClick={() => open(s.key)} />
+              ))}
+            </div>
+          )}
+          {section === 'playback' && <PlaybackSettings />}
+          {section === 'sources' &&
+            (provider ? (
+              <ProviderDetail provider={provider} onSaved={providers.update} />
+            ) : (
+              <ImportSourcesSettings providers={providers.list} error={providers.error} onOpen={setProviderId} />
+            ))}
         </div>
-        <div className="settings-body">{section === 'playback' && <PlaybackSettings />}</div>
       </div>
     </Modal>
   );

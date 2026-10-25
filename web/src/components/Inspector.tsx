@@ -17,14 +17,17 @@ import { Avatar, BookmarkFace } from './Card';
 import { TagInput } from './TagInput';
 import { cls, XLogo } from './ui';
 
-export function Inspector() {
+/** The side panel; in a sheet on narrow screens, where 'view' shows the folder or library even with a selection. */
+export function Inspector({ mode = 'selection' }: { mode?: 'selection' | 'view' }) {
   const selected = useStore((s) => s.selected);
   const items = useStore((s) => s.items);
   const sel = items.filter((i) => selected.has(i.id));
 
   return (
     <aside className="inspector">
-      {selected.size === 1 && sel.length === 1 ? (
+      {mode === 'view' ? (
+        <EmptyInspector />
+      ) : selected.size === 1 && sel.length === 1 ? (
         <SingleInspector key={sel[0].id} item={sel[0]} />
       ) : selected.size > 1 ? (
         // "select all" can include items whose pages aren't loaded yet: act on ids, preview what's loaded

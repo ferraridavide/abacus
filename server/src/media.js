@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import sharp from 'sharp';
 import { histogramFromRgb, encodeHistogram } from './color.js';
 
@@ -152,4 +153,102 @@ function dist(a, b) {
 
 function toHex([r, g, b]) {
   return '#' + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Read a video's display size and duration from an MP4/MOV file's moov box, without decoding it.
+ * Returns null for other containers or when the file has no video track.
+ */
+export function probeMp4(file) {
+  let fd;
+  try {
+    fd = fs.openSync(file, 'r');
+    const size = fs.fstatSync(fd).size;
+    const head = Buffer.alloc(16);
+    let pos = 0;
+    // moov can come before or after the media data, so walk the top-level boxes
+    while (pos + 8 <= size) {
+      fs.readSync(fd, head, 0, 16, pos);
+      let len = head.readUInt32BE(0);
+      let hdr = 8;
+      if (len === 1) {
+        len = Number(head.readBigUInt64BE(8));
+        hdr = 16;
+      } else if (len === 0) {
+        len = size - pos;
+      }
+      if (len < hdr) return null;
+      if (head.toString('latin1', 4, 8) === 'moov') {
+        if (len > 64 * 1024 * 1024) return null;
+        const moov = Buffer.alloc(len - hdr);
+        fs.readSync(fd, moov, 0, moov.length, pos + hdr);
+        return parseMoov(moov);
+      }
+      pos += len;
+    }
+    return null;
+  } catch {
+    return null;
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
+}
+
+function* boxes(buf, start = 0, end = buf.length) {
+  let pos = start;
+  while (pos + 8 <= end) {
+    let len = buf.readUInt32BE(pos);
+    let hdr = 8;
+    if (len === 1) {
+      len = Number(buf.readBigUInt64BE(pos + 8));
+      hdr = 16;
+    } else if (len === 0) {
+      len = end - pos;
+    }
+    if (len < hdr || pos + len > end) return;
+    yield { type: buf.toString('latin1', pos + 4, pos + 8), start: pos + hdr, end: pos + len };
+    pos += len;
+  }
+}
+
+function parseMoov(moov) {
+  let width = 0;
+  let height = 0;
+  let duration = null;
+  for (const box of boxes(moov)) {
+    if (box.type === 'mvhd') {
+      const v1 = moov[box.start] === 1;
+      const timescale = moov.readUInt32BE(box.start + (v1 ? 20 : 12));
+      const length = v1 ? Number(moov.readBigUInt64BE(box.start + 24)) : moov.readUInt32BE(box.start + 16);
+      if (timescale && length && length !== 0xffffffff) duration = length / timescale;
+    } else if (box.type === 'trak' && !width) {
+      for (const tkhd of boxes(moov, box.start, box.end)) {
+        if (tkhd.type !== 'tkhd') continue;
+        // the transform matrix follows the times, ids, and volume; width and height (16.16 fixed) follow it
+        const matrix = tkhd.start + (moov[tkhd.start] === 1 ? 52 : 40);
+        const w = Math.round(moov.readUInt32BE(matrix + 36) / 65536);
+        const h = Math.round(moov.readUInt32BE(matrix + 40) / 65536);
+        if (!w || !h) continue; // audio track
+        // a 90° or 270° rotation (phone videos) swaps the displayed width and height
+        const rotated = moov.readInt32BE(matrix) === 0 && moov.readInt32BE(matrix + 4) !== 0;
+        [width, height] = rotated ? [h, w] : [w, h];
+      }
+    }
+  }
+  return width && height ? { width, height, duration } : null;
+}
+
+/** Center-crop an image to a width/height ratio, e.g. a page's preview image to its video's shape. */
+export async function cropToAspect(buffer, width, height) {
+  const meta = await probeImage(buffer);
+  if (!meta || Math.abs(meta.width / meta.height - width / height) < 0.02) return buffer;
+  const scale = Math.min(meta.width / width, meta.height / height);
+  try {
+    return await sharp(buffer, { limitInputPixels: false })
+      .rotate()
+      .resize(Math.round(width * scale), Math.round(height * scale), { fit: 'cover' })
+      .toBuffer();
+  } catch {
+    return buffer;
+  }
 }

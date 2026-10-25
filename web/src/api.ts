@@ -1,4 +1,4 @@
-import type { Folder, ImportSources, Item, Job, Stats, TagCount } from './types';
+import type { ActiveProvider, Folder, Item, Job, ProviderSettings, ProviderTest, Stats, TagCount } from './types';
 
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -7,7 +7,7 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || `Request failed (${res.status})`);
+  if (!res.ok) throw new Error(data?.message || data?.error || `Request failed (${res.status})`);
   return data as T;
 }
 
@@ -38,7 +38,12 @@ export const api = {
     request<Folder>('PATCH', `/api/folders/${id}`, patch),
   deleteFolder: (id: string) => request<{ ok: boolean }>('DELETE', `/api/folders/${id}`),
   startImport: (body: { text: string; folderId?: string; tags?: string[] }) => request<Job>('POST', '/api/import', body),
-  importSources: () => request<ImportSources>('GET', '/api/import/sources'),
+  importSources: () => request<{ providers: ActiveProvider[] }>('GET', '/api/import/sources'),
+  providerSettings: () => request<ProviderSettings[]>('GET', '/api/settings/providers'),
+  updateProvider: (id: string, body: { enabled?: boolean; values?: Record<string, string> }) =>
+    request<ProviderSettings>('PATCH', `/api/settings/providers/${id}`, body),
+  testProvider: (id: string, values: Record<string, string>) =>
+    request<ProviderTest>('POST', `/api/settings/providers/${id}/test`, { values }),
   job: (id: string) => request<Job>('GET', `/api/jobs/${id}`),
   /** Returns null when the zip isn't an Are.na export. */
   importArena: async (file: File, folderId?: string): Promise<Job | null> => {

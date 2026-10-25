@@ -9,22 +9,37 @@ import { Viewer } from './components/Viewer';
 import { ImportDialog } from './components/ImportDialog';
 import { SettingsDialog } from './components/Settings';
 import { ConfirmDialog, ContextMenu, FolderPicker, Notifications } from './components/Overlays';
+import { SelectionBar } from './components/SelectionBar';
 import { dragKind } from './lib/dnd';
 import { countLinks } from './lib/format';
-import { cls } from './components/ui';
+import { cls, Sheet, useCompact } from './components/ui';
 
 const isTyping = (t: EventTarget | null) => !!(t as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable]');
 
 export default function App() {
   const inspectorOpen = useStore((s) => s.inspectorOpen);
+  const sidebarOpen = useStore((s) => s.sidebarOpen);
+  const details = useStore((s) => s.details);
+  const selecting = useStore((s) => s.selected.size > 0);
   const folders = useStore((s) => s.folders);
   const view = useStore((s) => s.view);
+  const compact = useCompact();
   const [fileDrag, setFileDrag] = useState(false);
   const dragDepth = useRef(0);
 
   useEffect(() => {
     useStore.getState().refresh();
   }, []);
+
+  // the selection's details sheet goes away with the selection
+  useEffect(() => {
+    if (!selecting && details === 'selection') useStore.getState().set({ details: null });
+  }, [selecting, details]);
+
+  // the drawer and the sheet only exist on narrow screens
+  useEffect(() => {
+    if (!compact) useStore.getState().set({ sidebarOpen: false, details: null });
+  }, [compact]);
 
   // global keyboard shortcuts
   useEffect(() => {
@@ -33,6 +48,10 @@ export default function App() {
       if ((e.metaKey || e.ctrlKey) && e.key === ',') {
         e.preventDefault();
         s.set({ settingsOpen: !s.settingsOpen });
+        return;
+      }
+      if (e.key === 'Escape' && s.sidebarOpen) {
+        s.set({ sidebarOpen: false });
         return;
       }
       if (isTyping(e.target) || s.settingsOpen || s.importOpen || s.folderPicker || s.confirm || s.viewerId) return;
@@ -130,18 +149,25 @@ export default function App() {
 
   return (
     <div
-      className={cls('app', !inspectorOpen && 'no-inspector')}
+      className={cls('app', !inspectorOpen && 'no-inspector', compact && selecting && 'selecting')}
       onDragEnter={onDragEnter}
       onDragLeave={onDragLeave}
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
       <Sidebar />
+      {sidebarOpen && <div className="drawer-scrim" onClick={() => useStore.getState().set({ sidebarOpen: false })} />}
       <main className="main">
         <Toolbar />
         <Grid />
       </main>
-      {inspectorOpen && <Inspector />}
+      {!compact && inspectorOpen && <Inspector />}
+      {compact && selecting && <SelectionBar />}
+      {compact && details && (
+        <Sheet className="inspector-sheet" onClose={() => useStore.getState().set({ details: null })}>
+          <Inspector mode={details} />
+        </Sheet>
+      )}
 
       {fileDrag && (
         <div className="drop-overlay">

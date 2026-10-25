@@ -56,6 +56,10 @@ interface State {
   viewerId: string | null;
   importOpen: boolean;
   settingsOpen: boolean;
+  /** the sidebar as a drawer, on narrow screens */
+  sidebarOpen: boolean;
+  /** the inspector as a bottom sheet, on narrow screens: the selection, or the current folder or library */
+  details: 'selection' | 'view' | null;
   folderPicker: { mode: 'add' | 'move'; ids: string[] } | null;
   contextMenu: ContextMenuState | null;
   confirm: ConfirmState | null;
@@ -121,7 +125,8 @@ export const useStore = create<State>()(
   persist(
     (set, get) => ({
       layout: 'masonry',
-      thumbSize: 240,
+      // two columns on a phone, until the size is changed
+      thumbSize: window.matchMedia('(max-width: 760px)').matches ? 150 : 240,
       showInfo: true,
       sort: { by: 'created', dir: 'desc' },
       expanded: {},
@@ -146,6 +151,8 @@ export const useStore = create<State>()(
       viewerId: null,
       importOpen: false,
       settingsOpen: false,
+      sidebarOpen: false,
+      details: null,
       folderPicker: null,
       contextMenu: null,
       confirm: null,
@@ -156,7 +163,7 @@ export const useStore = create<State>()(
       set: (patch) => set(patch),
 
       setView: (view) => {
-        set({ view, selected: new Set(), anchor: null, items: [], total: 0, loading: true });
+        set({ view, selected: new Set(), anchor: null, items: [], total: 0, loading: true, sidebarOpen: false });
         get().refreshItems();
       },
       setQuery: (query) => {

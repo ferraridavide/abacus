@@ -1728,6 +1728,9 @@ a {
   box-shadow: var(--shadow), 0 0 0 1px rgba(0, 0, 0, 0.4);
   animation: modal-in 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.1);
   max-width: calc(100vw - 40px);
+  /* dialogs taller than the window scroll instead of spilling off screen */
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
 }
 @keyframes modal-in {
   from {
@@ -1744,7 +1747,16 @@ a {
   justify-content: space-between;
   padding: 16px 16px 4px 22px;
 }
+.modal-head.has-back {
+  padding-left: 10px;
+  gap: 4px;
+}
 .modal-head h2 {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   margin: 0;
   font-size: 17px;
   font-weight: 650;
@@ -2017,6 +2029,8 @@ a {
   flex: 1;
   min-height: 0;
   display: grid;
+  /* definite tracks, so the media's max-width/max-height: 100% fit it inside the stage */
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   place-items: center;
   padding: 0 70px 30px;
   overflow: hidden;
@@ -2032,6 +2046,7 @@ a {
   width: 100%;
   height: 100%;
   display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   place-items: center;
   overflow: hidden;
   position: relative;
@@ -2327,18 +2342,6 @@ a {
     display: none;
   }
 }
-@media (max-width: 860px) {
-  .app,
-  .app.no-inspector {
-    grid-template-columns: 200px minmax(0, 1fr);
-  }
-  .inspector {
-    display: none;
-  }
-  .view-title h1 {
-    max-width: 120px;
-  }
-}
 
 /* ---------------- settings ---------------- */
 .brand > div {
@@ -2354,6 +2357,8 @@ a {
   height: min(520px, calc(100vh - 80px));
   display: grid;
   grid-template-columns: 190px 1fr;
+  /* a definite row, so the body scrolls instead of stretching the dialog */
+  grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
 }
 .settings-nav {
@@ -2363,6 +2368,7 @@ a {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  overflow-y: auto;
 }
 .settings-nav .nav-row {
   width: 100%;
@@ -2380,8 +2386,11 @@ a {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
 }
 .settings-body {
+  flex: 1;
+  min-height: 0;
   padding: 14px 22px 22px;
   overflow-y: auto;
 }
@@ -2393,6 +2402,170 @@ a {
   color: var(--text-faint);
   font-size: 12px;
   margin: 2px 0 14px;
+}
+.provider-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel-2);
+  overflow: hidden;
+}
+.provider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  text-align: left;
+  transition: background 0.12s;
+}
+.provider-row + .provider-row {
+  border-top: 1px solid var(--border);
+}
+.provider-row:hover {
+  background: var(--panel-3);
+}
+.status-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+.status-dot.on {
+  background: var(--ok);
+  box-shadow: 0 0 0 3px rgba(61, 220, 151, 0.15);
+}
+.provider-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.provider-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.provider-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.provider-name {
+  font-weight: 600;
+}
+.provider-desc {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.switch {
+  flex: none;
+  width: 34px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--panel-3);
+  border: 1px solid var(--border-strong);
+  position: relative;
+  transition: background 0.15s, border-color 0.15s;
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: transform 0.15s, background 0.15s;
+}
+.switch.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.switch.on::after {
+  transform: translateX(14px);
+  background: #fff;
+}
+.provider-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.provider-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-dim);
+  margin-bottom: 5px;
+}
+.provider-field .select {
+  width: 100%;
+}
+.text-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  outline: none;
+}
+.text-input:focus {
+  border-color: rgba(91, 140, 255, 0.7);
+  box-shadow: 0 0 0 3px rgba(91, 140, 255, 0.12);
+}
+.text-input::placeholder {
+  color: var(--text-faint);
+}
+.field-hint {
+  color: var(--text-faint);
+  font-size: 11.5px;
+  margin-top: 4px;
+}
+.secret-row {
+  display: flex;
+  gap: 8px;
+}
+.provider-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.provider-status {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+.provider-status svg {
+  flex: none;
+}
+.provider-status a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-dim);
+}
+.provider-status a:hover {
+  color: var(--text);
+}
+.provider-status.ok {
+  color: var(--ok);
+}
+.provider-status.error {
+  color: var(--danger);
+}
+.provider-sites {
+  color: var(--text-faint);
+  font-size: 11.5px;
+  line-height: 1.5;
+  margin-top: -6px;
 }
 .choice-list {
   display: flex;
@@ -2458,15 +2631,6 @@ a {
   border: 5px solid var(--accent);
   background: #fff;
 }
-@media (max-width: 760px) {
-  .settings-modal {
-    grid-template-columns: 1fr;
-  }
-  .settings-nav {
-    display: none;
-  }
-}
-
 .load-more {
   position: absolute;
   left: 50%;
@@ -2484,4 +2648,419 @@ a {
   place-items: center;
   line-height: 1;
   flex: none;
+}
+
+/* ---------------- dialog pages ---------------- */
+.page-links {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel-2);
+  overflow: hidden;
+}
+.page-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  text-align: left;
+  transition: background 0.12s;
+}
+.page-link + .page-link {
+  border-top: 1px solid var(--border);
+}
+.page-link:hover {
+  background: var(--panel-3);
+}
+.page-link-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--panel-3);
+  color: var(--text-dim);
+  flex: none;
+}
+.page-link-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.page-link-label {
+  font-weight: 600;
+}
+.page-link-desc {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* ---------------- bottom sheet ---------------- */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 180;
+  background: rgba(6, 7, 9, 0.55);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  animation: fadein 0.15s;
+}
+.sheet {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  max-height: 88dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-bottom: 0;
+  border-radius: 18px 18px 0 0;
+  box-shadow: var(--shadow);
+  padding-bottom: env(safe-area-inset-bottom);
+  animation: sheet-in 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+  transition: transform 0.2s;
+}
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+.sheet-handle {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  height: 22px;
+  background: var(--panel);
+  touch-action: none;
+  cursor: grab;
+}
+.sheet-handle::before {
+  content: '';
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-strong);
+}
+.sheet > .menu-list {
+  padding: 0 8px 10px;
+}
+.sheet .menu-item {
+  height: 42px;
+  font-size: 14px;
+}
+.sheet .menu-label {
+  padding-top: 10px;
+}
+.sheet .segmented button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  font-size: 13px;
+}
+.inspector-sheet .btn {
+  height: 40px;
+}
+.size-slider.full {
+  width: auto;
+  margin: 8px 12px 6px;
+}
+.inspector-sheet .inspector {
+  background: none;
+  border: 0;
+  overflow: visible;
+}
+.inspector-sheet .insp-body {
+  padding-top: 4px;
+}
+.inspector-sheet .shortcuts {
+  display: none;
+}
+
+/* ---------------- selection bar ---------------- */
+.selection-bar {
+  position: fixed;
+  left: 10px;
+  right: 10px;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  z-index: 90;
+  max-width: 520px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px;
+  border-radius: 14px;
+  background: rgba(36, 37, 43, 0.97);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow);
+  animation: toast-in 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.selection-count {
+  flex: 1;
+  min-width: 0;
+  padding-left: 2px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.selection-bar .icon-btn {
+  width: 40px;
+  height: 40px;
+  color: var(--text);
+}
+.selection-bar .icon-btn.danger {
+  color: var(--danger);
+}
+.app.selecting .notifications {
+  bottom: calc(76px + env(safe-area-inset-bottom));
+}
+.app.selecting .grid-scroll {
+  padding-bottom: 100px;
+}
+
+/* ---------------- narrow screens: sidebar drawer, inspector sheet ---------------- */
+.drawer-scrim {
+  display: none;
+}
+@media (max-width: 860px) {
+  .app,
+  .app.no-inspector {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 160;
+    width: min(300px, 85vw);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1), visibility 0s 0.25s;
+  }
+  .sidebar.open {
+    transform: none;
+    visibility: visible;
+    box-shadow: var(--shadow);
+    transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+  .drawer-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 155;
+    background: rgba(6, 7, 9, 0.55);
+    animation: fadein 0.15s;
+  }
+  .sidebar .nav-row {
+    height: 38px;
+    font-size: 14px;
+  }
+  .sidebar .tag-row {
+    height: 34px;
+  }
+  .menu-btn {
+    margin-left: -6px;
+  }
+  .view-title {
+    flex: none;
+    max-width: 40%;
+  }
+  .view-title.clickable {
+    cursor: pointer;
+    margin-left: -6px;
+    padding: 5px 6px;
+    border-radius: 8px;
+  }
+  .view-title.clickable:hover,
+  .view-title.clickable:active {
+    background: var(--hover);
+  }
+  .context-menu {
+    z-index: 250;
+  }
+  /* iOS 26 blurs whatever sits under the status bar in home screen apps, unless it finds a
+     fixed, solid bar at the top. --toolbar-h is measured in Toolbar.tsx. */
+  .toolbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg);
+    backdrop-filter: none;
+  }
+  .main {
+    padding-top: var(--toolbar-h, 56px);
+  }
+}
+
+/* ---------------- phones: full-screen dialogs, two-row toolbar ---------------- */
+@media (max-width: 760px) {
+  /* iOS zooms into text fields smaller than 16px */
+  input:not([type='range']):not([type='checkbox']),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  .toolbar {
+    flex-wrap: wrap;
+    height: auto;
+    gap: 8px 4px;
+    padding: 8px 10px;
+  }
+  .view-title {
+    flex: 1 1 0;
+    max-width: none;
+  }
+  .search {
+    order: 1;
+    flex: 1 1 100%;
+    max-width: none;
+    height: 38px;
+    margin: 0;
+  }
+  .toolbar-right {
+    gap: 2px;
+  }
+  .toolbar .btn.primary {
+    padding: 0 10px;
+  }
+  .grid-scroll {
+    padding: 12px 10px 80px;
+  }
+
+  .modal {
+    max-width: calc(100vw - 20px);
+  }
+  .modal.page {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: page-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+  .modal.page .modal-head {
+    flex: none;
+    padding: 10px 8px 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal.page .modal-head.has-back {
+    padding-left: 6px;
+  }
+  .modal.page > .modal-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 16px;
+  }
+  .modal.page .modal-foot {
+    flex: none;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  }
+  .page-enter {
+    animation: page-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+  .folder-select {
+    flex: 1;
+    min-width: 0;
+  }
+  .folder-select .select {
+    flex: 1;
+    min-width: 0;
+  }
+  .links-input {
+    height: 160px;
+  }
+  .settings-modal.page {
+    display: flex;
+  }
+  .settings-body {
+    padding: 16px;
+  }
+  .page-link {
+    padding: 14px;
+  }
+  .provider-foot {
+    flex-wrap: wrap;
+  }
+  .provider-foot .provider-status {
+    flex-basis: 100%;
+  }
+
+  .picker-modal {
+    width: 100%;
+    margin-top: 10px;
+  }
+  .picker-item {
+    height: 42px;
+  }
+
+  .notifications {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    align-items: stretch;
+  }
+  .job-card {
+    width: auto;
+  }
+  .toast {
+    max-width: none;
+  }
+
+  .viewer-bar {
+    padding: 0 6px 0 14px;
+  }
+  .viewer-name {
+    max-width: none;
+  }
+  .viewer-title {
+    flex: 1;
+  }
+  .viewer-stage {
+    padding: 0 0 12px;
+  }
+}
+
+/* ---------------- touch screens ---------------- */
+@media (hover: none) {
+  .card {
+    -webkit-touch-callout: none;
+  }
+  .card:hover .thumb > img,
+  .card:hover .thumb > video {
+    transform: none;
+  }
+  .icon-btn.floating {
+    opacity: 1;
+  }
+  /* swipe instead; pinch zooms the page */
+  .viewer-nav {
+    display: none;
+  }
+  .viewer-stage,
+  .zoom-wrap {
+    touch-action: pinch-zoom;
+  }
 }

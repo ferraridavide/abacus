@@ -29,6 +29,7 @@ export function Sidebar() {
   const folders = useStore((s) => s.folders);
   const tags = useStore((s) => s.tags);
   const tagsOpen = useStore((s) => s.tagsOpen);
+  const open = useStore((s) => s.sidebarOpen);
   const set = useStore((s) => s.set);
   const createFolder = useStore((s) => s.createFolder);
   const [rootDrop, setRootDrop] = useState(false);
@@ -44,7 +45,7 @@ export function Sidebar() {
   }, [folders]);
 
   return (
-    <aside className="sidebar">
+    <aside className={cls('sidebar', open && 'open')}>
       <div className="brand">
         <Logo size={26} />
         <div>
@@ -53,7 +54,7 @@ export function Sidebar() {
             {stats.all.toLocaleString()} items · {formatBytes(stats.totalSize)}
           </div>
         </div>
-        <button className="icon-btn sm brand-settings" title="Settings (⌘,)" onClick={() => set({ settingsOpen: true })}>
+        <button className="icon-btn sm brand-settings" title="Settings (⌘,)" onClick={() => set({ settingsOpen: true, sidebarOpen: false })}>
           <Settings size={15} />
         </button>
       </div>
