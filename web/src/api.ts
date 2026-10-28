@@ -12,17 +12,6 @@ import type {
   TagCount,
 } from './types';
 
-async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method,
-    headers: body !== undefined ? { 'content-type': 'application/json' } : undefined,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.message || data?.error || `Request failed (${res.status})`);
-  return data as T;
-}
-
 export type BatchAction =
   | 'trash'
   | 'restore'
@@ -33,57 +22,74 @@ export type BatchAction =
   | 'moveToFolder'
   | 'removeFromFolder';
 
-export const api = {
-  bootstrap: () => request<{ stats: Stats; folders: Folder[]; tags: TagCount[] }>('GET', '/api/bootstrap'),
-  items: (params: Record<string, string>) =>
-    request<{ items: Item[]; total: number; offset: number; ranking?: 'similarity'; scores?: Record<string, SearchScore> }>(
-      'GET',
-      '/api/items?' + new URLSearchParams(params).toString()
-    ),
-  itemIds: (params: Record<string, string>) =>
-    request<{ ids: string[] }>('GET', '/api/items/ids?' + new URLSearchParams(params).toString()),
-  updateItem: (id: string, patch: Partial<Pick<Item, 'name' | 'description' | 'notes' | 'rating' | 'url' | 'tags' | 'folders'>>) =>
-    request<Item>('PATCH', `/api/items/${id}`, patch),
-  batch: (body: { ids: string[]; action: BatchAction; tags?: string[]; folderId?: string; fromFolderId?: string }) =>
-    request<{ ok: boolean }>('POST', '/api/items/batch', body),
-  emptyTrash: () => request<{ ok: boolean }>('DELETE', '/api/trash'),
-  createFolder: (body: { name: string; parentId?: string | null; color?: string | null }) =>
-    request<Folder>('POST', '/api/folders', body),
-  updateFolder: (id: string, patch: Partial<Pick<Folder, 'name' | 'color' | 'parentId' | 'sort'>>) =>
-    request<Folder>('PATCH', `/api/folders/${id}`, patch),
-  deleteFolder: (id: string) => request<{ ok: boolean }>('DELETE', `/api/folders/${id}`),
-  startImport: (body: { text: string; folderId?: string; tags?: string[] }) => request<Job>('POST', '/api/import', body),
-  importSources: () => request<{ providers: ActiveProvider[] }>('GET', '/api/import/sources'),
-  providerSettings: () => request<ProviderSettings[]>('GET', '/api/settings/providers'),
-  updateProvider: (id: string, body: { enabled?: boolean; values?: Record<string, string> }) =>
-    request<ProviderSettings>('PATCH', `/api/settings/providers/${id}`, body),
-  testProvider: (id: string, values: Record<string, string>) =>
-    request<ProviderTest>('POST', `/api/settings/providers/${id}/test`, { values }),
-  embeddingSettings: () => request<ProviderSettings>('GET', '/api/settings/embeddings'),
-  updateEmbeddings: (body: { enabled?: boolean; values?: Record<string, string> }) =>
-    request<ProviderSettings>('PATCH', '/api/settings/embeddings', body),
-  testEmbeddings: (values: Record<string, string>) =>
-    request<ProviderTest>('POST', '/api/settings/embeddings/test', { values }),
-  embeddingStatus: () => request<EmbeddingStatus>('GET', '/api/embeddings/status'),
-  reprocessEmbeddings: () => request<EmbeddingStatus>('POST', '/api/embeddings/reprocess'),
-  itemEmbedding: (id: string) => request<ItemEmbedding>('GET', `/api/items/${id}/embedding`),
-  reprocessItemEmbedding: (id: string) => request<ItemEmbedding>('POST', `/api/items/${id}/embedding`),
-  job: (id: string) => request<Job>('GET', `/api/jobs/${id}`),
-  /** Returns null when the zip isn't an Are.na export. */
-  importArena: async (file: File, folderId?: string): Promise<Job | null> => {
-    const form = new FormData();
-    if (folderId) form.append('folderId', folderId);
-    form.append('file', file, file.name);
-    const res = await fetch('/api/import/arena', { method: 'POST', body: form });
-    if (res.status === 422) return null;
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.error || `Import failed (${res.status})`);
-    return data;
+export type ItemPatch = Partial<Pick<Item, 'name' | 'description' | 'notes' | 'rating' | 'url' | 'tags' | 'folders'>>;
+export type FolderPatch = Partial<Pick<Folder, 'name' | 'color' | 'parentId' | 'sort'>>;
+export type ServicePatch = { enabled?: boolean; values?: Record<string, string> };
+
+/**
+ * Everything the app asks of a library. The Abacus server is one implementation (backends/http); the demo, which
+ * keeps the library in the browser, is another (backends/demo). main.tsx picks one and provides it before rendering.
+ */
+export interface Backend {
+  bootstrap(): Promise<{ stats: Stats; folders: Folder[]; tags: TagCount[] }>;
+  items(params: Record<string, string>): Promise<{
+    items: Item[];
+    total: number;
+    offset: number;
+    ranking?: 'similarity';
+    scores?: Record<string, SearchScore>;
+  }>;
+  itemIds(params: Record<string, string>): Promise<{ ids: string[] }>;
+  updateItem(id: string, patch: ItemPatch): Promise<Item>;
+  batch(body: { ids: string[]; action: BatchAction; tags?: string[]; folderId?: string; fromFolderId?: string }): Promise<{ ok: boolean }>;
+  emptyTrash(): Promise<{ ok: boolean }>;
+  createFolder(body: { name: string; parentId?: string | null; color?: string | null }): Promise<Folder>;
+  updateFolder(id: string, patch: FolderPatch): Promise<Folder>;
+  deleteFolder(id: string): Promise<{ ok: boolean }>;
+  startImport(body: { text: string; folderId?: string; tags?: string[] }): Promise<Job>;
+  importSources(): Promise<{ providers: ActiveProvider[] }>;
+  providerSettings(): Promise<ProviderSettings[]>;
+  updateProvider(id: string, body: ServicePatch): Promise<ProviderSettings>;
+  testProvider(id: string, values: Record<string, string>): Promise<ProviderTest>;
+  embeddingSettings(): Promise<ProviderSettings>;
+  updateEmbeddings(body: ServicePatch): Promise<ProviderSettings>;
+  testEmbeddings(values: Record<string, string>): Promise<ProviderTest>;
+  embeddingStatus(): Promise<EmbeddingStatus>;
+  reprocessEmbeddings(): Promise<EmbeddingStatus>;
+  itemEmbedding(id: string): Promise<ItemEmbedding>;
+  reprocessItemEmbedding(id: string): Promise<ItemEmbedding>;
+  job(id: string): Promise<Job>;
+  /** Resolves to null when the zip isn't an Are.na export. */
+  importArena(file: File, folderId?: string): Promise<Job | null>;
+  upload(form: FormData): Promise<Item>;
+}
+
+/** A backend rejects with this when it can't do what was asked at all, such as importing links in the demo. */
+export class UnavailableError extends Error {
+  readonly unavailable = true;
+}
+
+let provided: Backend | null = null;
+let onUnavailable: (message: string) => void = () => {};
+
+/** Choose the backend the app talks to. Call it once, before the app renders. */
+export function provideBackend(backend: Backend, opts: { onUnavailable?: (message: string) => void } = {}) {
+  provided = backend;
+  if (opts.onUnavailable) onUnavailable = opts.onUnavailable;
+}
+
+/**
+ * The provided backend. Each method is looked up when it's called, so modules may hold on to `api.x` before
+ * provideBackend() runs. An UnavailableError is reported through `onUnavailable` and then rejected as usual.
+ */
+export const api = new Proxy({} as Backend, {
+  get(_, key: keyof Backend) {
+    return (...args: unknown[]) => {
+      if (!provided) throw new Error('No backend provided');
+      return (provided[key] as (...a: unknown[]) => Promise<unknown>)(...args).catch((e: unknown) => {
+        if (e instanceof UnavailableError) onUnavailable(e.message);
+        throw e;
+      });
+    };
   },
-  upload: async (form: FormData): Promise<Item> => {
-    const res = await fetch('/api/upload', { method: 'POST', body: form });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.error || `Upload failed (${res.status})`);
-    return data;
-  },
-};
+});

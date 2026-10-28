@@ -4,13 +4,16 @@ import { api } from '../api';
 import type { ProviderField, ProviderSettings, ProviderTest } from '../types';
 import { cls } from './ui';
 
-/** The import providers' settings, loaded when the dialog opens. */
-export function useProviderSettings() {
+/** The import providers' settings, loaded the first time they're needed. */
+export function useProviderSettings(needed: boolean) {
   const [list, setList] = useState<ProviderSettings[] | null>(null);
   const [error, setError] = useState('');
+  const [asked, setAsked] = useState(false);
   useEffect(() => {
+    if (!needed || asked) return;
+    setAsked(true);
     api.providerSettings().then(setList, (e) => setError(e.message));
-  }, []);
+  }, [needed, asked]);
   const update = (next: ProviderSettings) => setList((l) => l && l.map((p) => (p.id === next.id ? next : p)));
   return { list, error, update };
 }

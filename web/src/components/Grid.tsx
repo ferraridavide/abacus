@@ -143,7 +143,7 @@ export function Grid() {
       ids = [item.id];
     }
     e.dataTransfer.setData(ITEM_MIME, JSON.stringify(ids));
-    if (item.fileUrl) e.dataTransfer.setData('text/uri-list', location.origin + item.fileUrl);
+    if (item.fileUrl) e.dataTransfer.setData('text/uri-list', new URL(item.fileUrl, location.href).href);
     e.dataTransfer.effectAllowed = 'copyMove';
     const thumbs = ids.slice(0, 3).map((id) => s.items.find((i) => i.id === id)?.thumbUrl ?? null);
     setItemDragImage(e, thumbs, ids.length);

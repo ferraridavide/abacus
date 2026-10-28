@@ -3400,3 +3400,59 @@ a {
     flex-basis: 100%;
   }
 }
+
+/* ---------------- demo build ---------------- */
+.toast.demo {
+  border-color: rgba(254, 202, 87, 0.35);
+}
+.toast.demo svg {
+  flex-shrink: 0;
+  color: #feca57;
+}
+.demo-badge {
+  position: fixed;
+  right: 18px;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  z-index: 290;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(254, 202, 87, 0.45);
+  background: rgba(40, 33, 14, 0.92);
+  color: #feca57;
+  font: 600 11px/1.4 var(--font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+}
+.demo-badge:hover {
+  background: rgba(58, 47, 18, 0.96);
+}
+/* toasts and import progress stack above the badge; on phones both clear the selection bar */
+:root:has(.demo-badge) .notifications {
+  bottom: calc(54px + env(safe-area-inset-bottom));
+}
+:root:has(.demo-badge) .app.selecting .notifications {
+  bottom: calc(112px + env(safe-area-inset-bottom));
+}
+.app.selecting ~ .demo-badge {
+  bottom: calc(76px + env(safe-area-inset-bottom));
+}
+@media (max-width: 860px) {
+  .demo-badge {
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+}
+.demo-boot {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  background: var(--bg);
+}

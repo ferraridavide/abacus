@@ -29,8 +29,8 @@ function SettingsInner() {
   const phone = usePhone();
   const [picked, setPicked] = useState<Section | null>(null);
   const [providerId, setProviderId] = useState<string | null>(null);
-  const providers = useProviderSettings();
   const section = picked ?? (phone ? null : 'playback');
+  const providers = useProviderSettings(section === 'sources');
   const provider = section === 'sources' ? providers.list?.find((p) => p.id === providerId) : undefined;
   const close = () => set({ settingsOpen: false });
   const open = (key: Section) => {

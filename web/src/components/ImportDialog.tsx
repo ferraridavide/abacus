@@ -214,6 +214,12 @@ function BookmarkletTab({ folderId }: { folderId: string }) {
   useEffect(() => {
     ref.current?.setAttribute('href', code);
   }, [code]);
+  // the bookmarklet saves through the server's /quick-add page
+  useEffect(() => {
+    if (import.meta.env.VITE_DEMO === 'true') {
+      useStore.getState().toast("The bookmarklet isn't available in the demo, which runs entirely in your browser.", 'demo');
+    }
+  }, []);
   return (
     <div className="modal-body page-enter">
       <p className="hint">
