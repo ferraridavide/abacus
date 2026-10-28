@@ -76,7 +76,10 @@ starts with a small sample library. Items, folders, and uploaded files are store
 they stay in that browser only.
 
 - To run the demo locally, run `npm run dev:demo --prefix web`.
-- To build it, run `npm run build:demo --prefix web`. The static site is written to `web/dist`.
+- To build it, run `npm run build:demo --prefix web`. The static site is written to `web/dist` and can be served
+  from any path.
+- The **Deploy demo** GitHub Actions workflow publishes it to GitHub Pages on every push to `main`. To turn it on,
+  open the repository's **Settings** > **Pages** and set **Source** to **GitHub Actions**.
 
 Browsing, search, color search, filters, folders, tags, ratings, notes, the trash, and uploading or pasting files
 work as usual. Importing links, Are.na exports, the bookmarklet, import providers, and semantic search need the

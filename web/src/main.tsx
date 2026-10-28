@@ -1,33 +1,23 @@
-import { StrictMode, type ReactNode } from 'react';
+import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { provideBackend } from './api';
-import { DemoBadge } from './components/DemoBadge';
-import { useStore } from './store';
 import './styles.css';
 
 const root = createRoot(document.getElementById('root')!);
-const render = (extra?: ReactNode) =>
-  root.render(
-    <StrictMode>
-      <App />
-      {extra}
-    </StrictMode>
-  );
 
-// The demo build (VITE_DEMO=true) keeps the library in the browser instead of talking to the server. Each backend is
-// its own chunk, so a regular build doesn't ship the demo, and the demo doesn't ship the server client.
+// VITE_DEMO is replaced at build time, so each build keeps only its own branch. The demo build (VITE_DEMO=true)
+// keeps the library in the browser and shows the app on a landing page, without the server client; a regular build
+// talks to the server, without the demo.
 if (import.meta.env.VITE_DEMO === 'true') {
-  // the first visit draws the sample library, which takes a moment
-  root.render(<div className="demo-boot">Preparing the demo library…</div>);
-  import('./backends/demo').then(async ({ createDemoBackend }) => {
-    const { backend, reset } = await createDemoBackend();
-    provideBackend(backend, { onUnavailable: (message) => useStore.getState().toast(message, 'demo') });
-    render(<DemoBadge onReset={reset} />);
-  });
+  import('./demo').then(({ startDemo }) => startDemo(root));
 } else {
   import('./backends/http').then(({ httpBackend }) => {
     provideBackend(httpBackend);
-    render();
+    root.render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    );
   });
 }
