@@ -58,6 +58,7 @@ export function Toolbar() {
   const query = useStore((s) => s.query);
   const filters = useStore((s) => s.filters);
   const sort = useStore((s) => s.sort);
+  const ranking = useStore((s) => s.ranking);
   const layout = useStore((s) => s.layout);
   const thumbSize = useStore((s) => s.thumbSize);
   const inspectorOpen = useStore((s) => s.inspectorOpen);
@@ -273,7 +274,7 @@ export function Toolbar() {
               trigger={(open, toggle) => (
                 <button className={cls('tool-btn', open && 'active')} onClick={toggle} title="Sort">
                   {sort.dir === 'desc' ? <ArrowDownWideNarrow size={15} /> : <ArrowUpNarrowWide size={15} />}
-                  <span>{SORTS.find((s) => s.key === sort.by)?.label}</span>
+                  <span>{ranking ? 'Relevance' : SORTS.find((s) => s.key === sort.by)?.label}</span>
                 </button>
               )}
             >
@@ -346,9 +347,13 @@ export function Toolbar() {
 function SortOptions({ close }: { close: () => void }) {
   const sort = useStore((s) => s.sort);
   const showInfo = useStore((s) => s.showInfo);
+  const ranking = useStore((s) => s.ranking);
   const { setSort, set } = useStore.getState();
   return (
     <>
+      {ranking && (
+        <div className="menu-note">Semantic search ranks these results by similarity. The sort applies once you clear the search.</div>
+      )}
       <div className="menu-label">Sort by</div>
       {SORTS.map((s) => (
         <button

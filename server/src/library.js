@@ -4,6 +4,7 @@ import { db, tx } from './db.js';
 import { paths } from './config.js';
 import { newId, safeName, VIDEO_EXTS } from './util.js';
 import { probeImage, makeThumb, extractPalette } from './media.js';
+import { kickEmbeddings, similarityTo, textChanged } from './embeddings.js';
 
 const ITEM_COLUMNS = `
   i.*,
@@ -157,6 +158,7 @@ export async function addItem(input) {
     for (const fid of input.folderIds || []) linkFolder(id, fid, now);
     for (const tag of input.tags || []) linkTag(id, tag);
   });
+  kickEmbeddings();
   return getItem(id);
 }
 
@@ -273,10 +275,23 @@ function buildQuery(params) {
 export const PAGE_MAX = 1000;
 
 /** One page of items plus the total match count. */
-export function listItems(params = {}) {
-  const { where, args, order } = buildQuery(params);
+export async function listItems(params = {}) {
   const limit = Math.min(PAGE_MAX, Math.max(1, Number(params.limit) || 200));
   const offset = Math.max(0, Number(params.offset) || 0);
+  const ranked = await rankedIds(params);
+  if (ranked) {
+    const hits = ranked.slice(offset, offset + limit);
+    const page = hits.map((h) => h.id);
+    const rows = page.length
+      ? db.prepare(`SELECT ${ITEM_COLUMNS} FROM items i WHERE i.id IN (${page.map(() => '?').join(',')})`).all(...page)
+      : [];
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    const items = page.map((id) => serializeItem(byId.get(id))).filter(Boolean);
+    const scores = {};
+    for (const h of hits) if (h.score !== null) scores[h.id] = { score: h.score, kind: h.kind, textMatch: h.textMatch };
+    return { items, total: ranked.length, offset, ranking: 'similarity', scores };
+  }
+  const { where, args, order } = buildQuery(params);
   const items = db
     .prepare(`SELECT ${ITEM_COLUMNS} FROM items i WHERE ${where} ORDER BY ${order} LIMIT ? OFFSET ?`)
     .all(...args, limit, offset)
@@ -286,12 +301,58 @@ export function listItems(params = {}) {
 }
 
 /** Every matching id, in order — for "select all" without loading every item. */
-export function listItemIds(params = {}) {
+export async function listItemIds(params = {}) {
+  const ranked = await rankedIds(params);
+  if (ranked) return ranked.map((h) => h.id);
   const { where, args, order } = buildQuery(params);
   return db
     .prepare(`SELECT i.id FROM items i WHERE ${where} ORDER BY ${order}`)
     .all(...args)
     .map((r) => r.id);
+}
+
+// Without a minimum similarity in the settings, results stay this close to the best match.
+const RELATIVE_CUTOFF = 0.06;
+// Items that also match the search words rank a little higher.
+const TEXT_BOOST = 0.05;
+
+const isTagToken = (t) => t.startsWith('#') && t.length > 1;
+
+/**
+ * With semantic search on, a search matches items whose image or text is close in meaning to the words, as well as
+ * those that contain them, ranked by similarity. #tag words still filter. Null when it's off, so the plain query runs.
+ * Resolves to [{ id, score, kind, textMatch }], score being null for items not embedded yet.
+ */
+async function rankedIds(params) {
+  const words = String(params.q || '').split(/\s+/).filter(Boolean);
+  const text = words.filter((t) => !isTagToken(t)).join(' ');
+  if (!text || params.view === 'trash') return null;
+  const sim = await similarityTo(text);
+  if (!sim) return null;
+
+  const base = buildQuery({ ...params, q: words.filter(isTagToken).join(' ') });
+  const candidates = db
+    .prepare(`SELECT i.id FROM items i WHERE ${base.where} ORDER BY i.created_at DESC`)
+    .all(...base.args)
+    .map((r) => ({ id: r.id, ...(sim.score(r.id) ?? { score: null, kind: null }) }));
+  const full = buildQuery(params);
+  const textMatches = new Set(
+    db
+      .prepare(`SELECT i.id FROM items i WHERE ${full.where}`)
+      .all(...full.args)
+      .map((r) => r.id)
+  );
+
+  let best = -Infinity;
+  for (const c of candidates) if (c.score !== null && c.score > best) best = c.score;
+  const cutoff = sim.minScore ?? best - RELATIVE_CUTOFF;
+  // items without an embedding (yet) can only match by text; they rank as if at the cutoff
+  const floor = Number.isFinite(cutoff) ? cutoff : 0;
+  const rank = (c) => (c.score ?? floor) + (c.textMatch ? TEXT_BOOST : 0);
+  return candidates
+    .map((c) => ({ ...c, textMatch: textMatches.has(c.id) }))
+    .filter((c) => c.textMatch || (c.score !== null && c.score >= cutoff))
+    .sort((a, b) => rank(b) - rank(a));
 }
 
 function hexToRgb(hex) {
@@ -352,6 +413,7 @@ export function updateItem(id, patch) {
       for (const fid of patch.folders) linkFolder(id, fid, Date.now());
     }
   });
+  if (patch.name !== undefined || patch.notes !== undefined || Array.isArray(patch.tags)) textChanged([id]);
   return getItem(id);
 }
 
@@ -402,6 +464,8 @@ export function batch({ ids = [], action, tags = [], folderId, fromFolderId }) {
     }
   });
   for (const r of removedFiles) removeItemFiles(r);
+  if (action === 'restore') kickEmbeddings();
+  if (action === 'addTags' || action === 'removeTags') textChanged(ids);
   return { ok: true, count: ids.length };
 }
 

@@ -1,7 +1,19 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api, type BatchAction } from './api';
-import type { AutoplayMode, Filters, Folder, Item, Job, LayoutMode, SortKey, Stats, TagCount, View } from './types';
+import type {
+  AutoplayMode,
+  Filters,
+  Folder,
+  Item,
+  Job,
+  LayoutMode,
+  SearchScore,
+  SortKey,
+  Stats,
+  TagCount,
+  View,
+} from './types';
 import { isVideoFile, probeVideo } from './lib/upload';
 
 export interface Toast {
@@ -44,6 +56,10 @@ interface State {
   items: Item[];
   /** matches on the server; `items` holds the pages loaded so far */
   total: number;
+  /** 'similarity' when semantic search ranked the results, overriding the sort */
+  ranking: 'similarity' | null;
+  /** semantic search scores of the loaded items, by id */
+  scores: Record<string, SearchScore>;
   loading: boolean;
   loadingMore: boolean;
   folders: Folder[];
@@ -140,6 +156,8 @@ export const useStore = create<State>()(
       seed: 1,
       items: [],
       total: 0,
+      ranking: null,
+      scores: {},
       loadingMore: false,
       loading: true,
       folders: [],
@@ -189,12 +207,16 @@ export const useStore = create<State>()(
         const req = ++itemsRequest;
         const limit = mode === 'keep' ? Math.min(1000, Math.max(PAGE, get().items.length)) : PAGE;
         try {
-          const { items, total } = await api.items({ ...queryParams(get()), offset: '0', limit: String(limit) });
+          const { items, total, ranking, scores } = await api.items({
+            ...queryParams(get()),
+            offset: '0',
+            limit: String(limit),
+          });
           if (req !== itemsRequest) return;
           const ids = new Set(items.map((i) => i.id));
           // in 'keep' mode, selected items beyond the re-fetched window stay selected
           const selected = mode === 'keep' ? get().selected : new Set([...get().selected].filter((id) => ids.has(id)));
-          set({ items, total, loading: false, loadingMore: false, selected });
+          set({ items, total, ranking: ranking ?? null, scores: scores ?? {}, loading: false, loadingMore: false, selected });
         } catch (e) {
           if (req === itemsRequest) set({ loading: false });
           get().toast((e as Error).message, 'error');
@@ -210,7 +232,12 @@ export const useStore = create<State>()(
           const page = await api.items({ ...queryParams(get()), offset: String(items.length), limit: String(PAGE) });
           if (req !== itemsRequest) return; // the view changed meanwhile
           const have = new Set(get().items.map((i) => i.id));
-          set({ items: [...get().items, ...page.items.filter((i) => !have.has(i.id))], total: page.total, loadingMore: false });
+          set({
+            items: [...get().items, ...page.items.filter((i) => !have.has(i.id))],
+            total: page.total,
+            scores: page.scores ? { ...get().scores, ...page.scores } : get().scores,
+            loadingMore: false,
+          });
         } catch (e) {
           set({ loadingMore: false });
           get().toast((e as Error).message, 'error');

@@ -1,15 +1,17 @@
 import { useState, type ReactNode } from 'react';
-import { CloudDownload, MousePointer2, PauseCircle, PlayCircle, Play } from 'lucide-react';
+import { CloudDownload, MousePointer2, PauseCircle, PlayCircle, Play, Sparkles } from 'lucide-react';
 import { useStore } from '../store';
 import type { AutoplayMode } from '../types';
+import { SemanticSearchSettings } from './SemanticSearchSettings';
 import { ImportSourcesSettings, ProviderDetail, useProviderSettings } from './ProviderSettings';
 import { cls, DialogHead, Modal, PageLink, usePhone } from './ui';
 
-type Section = 'playback' | 'sources';
+type Section = 'playback' | 'sources' | 'search';
 
 const SECTIONS: { key: Section; label: string; desc: string; icon: ReactNode }[] = [
   { key: 'playback', label: 'Playback', desc: 'Autoplay of videos and GIFs', icon: <Play size={15} /> },
   { key: 'sources', label: 'Import sources', desc: 'Providers that download media', icon: <CloudDownload size={15} /> },
+  { key: 'search', label: 'Semantic search', desc: 'Find anything by what it is about', icon: <Sparkles size={15} /> },
 ];
 
 export function SettingsDialog() {
@@ -63,6 +65,7 @@ function SettingsInner() {
             </div>
           )}
           {section === 'playback' && <PlaybackSettings />}
+          {section === 'search' && <SemanticSearchSettings />}
           {section === 'sources' &&
             (provider ? (
               <ProviderDetail provider={provider} onSaved={providers.update} />

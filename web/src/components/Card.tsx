@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { Check, FileIcon, Globe, Link2, Play, Star } from 'lucide-react';
-import type { Item } from '../types';
+import { Check, FileIcon, Globe, Image as ImageIcon, Link2, Play, Star, Type } from 'lucide-react';
+import type { Item, SearchScore } from '../types';
 import type { Box } from '../lib/layout';
 import { formatDate, formatDuration, hostOf, itemMeta } from '../lib/format';
 import { cls, XLogo } from './ui';
@@ -10,6 +10,8 @@ interface Props {
   item: Item;
   box: Box;
   selected: boolean;
+  /** set while semantic search ranks the grid */
+  score?: SearchScore;
   showInfo: boolean;
   captionH: number;
   fit: 'cover' | 'contain';
@@ -24,6 +26,7 @@ export const Card = memo(function Card({
   item,
   box,
   selected,
+  score,
   showInfo,
   captionH,
   fit,
@@ -125,6 +128,7 @@ export const Card = memo(function Card({
             <Star size={10} fill="currentColor" /> {item.rating}
           </span>
         )}
+        {score && <ScoreBadge score={score} />}
         <span className="check">
           <Check size={12} strokeWidth={3} />
         </span>
@@ -140,6 +144,17 @@ export const Card = memo(function Card({
     </div>
   );
 });
+
+function ScoreBadge({ score }: { score: SearchScore }) {
+  const title =
+    `Similarity ${score.score.toFixed(3)}, by its ${score.kind}` + (score.textMatch ? '. Also contains the search words.' : '');
+  return (
+    <span className={cls('score-badge', score.textMatch && 'text-match')} title={title}>
+      {score.kind === 'image' ? <ImageIcon size={9} strokeWidth={2.5} /> : <Type size={9} strokeWidth={2.5} />}
+      {score.score.toFixed(2)}
+    </span>
+  );
+}
 
 export function BookmarkFace({ item, large }: { item: Item; large?: boolean }) {
   if (item.source === 'x') {

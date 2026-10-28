@@ -19,6 +19,7 @@ export function Grid() {
   const showInfo = useStore((s) => s.showInfo);
   const selected = useStore((s) => s.selected);
   const view = useStore((s) => s.view);
+  const scores = useStore((s) => (s.ranking ? s.scores : null));
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -228,6 +229,7 @@ export function Grid() {
             item={items[i]}
             box={boxes[i]}
             selected={selected.has(items[i].id)}
+            score={scores?.[items[i].id]}
             showInfo={showInfo}
             captionH={captionH}
             fit={fit}

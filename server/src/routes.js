@@ -7,6 +7,7 @@ import * as lib from './library.js';
 import { startImport, startArenaImport, getJob } from './jobs.js';
 import { readArenaZip } from './importers/arena.js';
 import { activeProviders, listProviderSettings, testProvider, updateProvider } from './providers/index.js';
+import * as embeddings from './embeddings.js';
 
 const notFound = (reply) => reply.code(404).send({ error: 'Not found' });
 
@@ -36,7 +37,7 @@ export async function routes(app) {
     offset: q.offset,
   });
   app.get('/api/items', async (req) => lib.listItems(itemQuery(req.query)));
-  app.get('/api/items/ids', async (req) => ({ ids: lib.listItemIds(itemQuery(req.query)) }));
+  app.get('/api/items/ids', async (req) => ({ ids: await lib.listItemIds(itemQuery(req.query)) }));
 
   app.get('/api/items/:id', async (req, reply) => lib.getItem(req.params.id) || notFound(reply));
 
@@ -44,6 +45,10 @@ export async function routes(app) {
     if (!lib.getItem(req.params.id)) return notFound(reply);
     return lib.updateItem(req.params.id, req.body || {});
   });
+
+  // Whether the item has an embedding for semantic search; POST computes it again.
+  app.get('/api/items/:id/embedding', async (req, reply) => embeddings.itemEmbedding(req.params.id) || notFound(reply));
+  app.post('/api/items/:id/embedding', async (req, reply) => (await embeddings.reprocessItem(req.params.id)) || notFound(reply));
 
   app.post('/api/items/batch', async (req) => lib.batch(req.body || {}));
 
@@ -155,6 +160,13 @@ export async function routes(app) {
   app.patch('/api/settings/providers/:id', async (req) => updateProvider(req.params.id, req.body || {}));
   // Checks the given (unsaved) values; missing values fall back to the saved ones.
   app.post('/api/settings/providers/:id/test', async (req) => testProvider(req.params.id, req.body?.values));
+
+  // ---------- settings (semantic search embeddings) ----------
+  app.get('/api/settings/embeddings', async () => embeddings.embeddingSettings());
+  app.patch('/api/settings/embeddings', async (req) => embeddings.updateEmbeddings(req.body || {}));
+  app.post('/api/settings/embeddings/test', async (req) => embeddings.testEmbeddings(req.body?.values));
+  app.get('/api/embeddings/status', async () => embeddings.embeddingStatus());
+  app.post('/api/embeddings/reprocess', async () => embeddings.reprocessAll());
 
   // ---------- bookmarklet landing page ----------
   app.get('/quick-add', async (req, reply) => {

@@ -1,17 +1,25 @@
 import { useEffect, useState } from 'react';
 import {
+  Check,
+  CircleAlert,
+  CircleDashed,
   ExternalLink,
   Folder as FolderIcon,
   FolderPlus,
+  Image as ImageIcon,
   Layers,
+  Loader2,
   Maximize2,
+  RefreshCw,
   RotateCcw,
   Star,
   Trash2,
+  Type,
   X,
 } from 'lucide-react';
+import { api } from '../api';
 import { useStore } from '../store';
-import type { Item } from '../types';
+import type { Item, ItemEmbedding } from '../types';
 import { formatBytes, formatDate, formatDuration, FOLDER_COLORS, hostOf } from '../lib/format';
 import { Avatar, BookmarkFace } from './Card';
 import { TagInput } from './TagInput';
@@ -268,6 +276,8 @@ function SingleInspector({ item }: { item: Item }) {
         </dl>
       </Section>
 
+      <EmbeddingSection item={item} />
+
       <div className="insp-actions">
         {trashed ? (
           <>
@@ -285,6 +295,85 @@ function SingleInspector({ item }: { item: Item }) {
         )}
       </div>
     </div>
+  );
+}
+
+/** The item's embeddings for semantic search (image, text), with a button to compute them again. */
+function EmbeddingSection({ item }: { item: Item }) {
+  const [info, setInfo] = useState<ItemEmbedding | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const load = () =>
+      api.itemEmbedding(item.id).then(
+        (next) => {
+          if (!alive) return;
+          setInfo(next);
+          // the background worker gets to it soon
+          if (next.state === 'pending') timer = setTimeout(load, 3000);
+        },
+        () => {}
+      );
+    load();
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+    // edits to the name, notes or tags embed the text again
+  }, [item.id, item.updatedAt]);
+
+  if (!info || info.state === 'off' || !info.parts.length) return null;
+
+  const reprocess = async () => {
+    setBusy(true);
+    try {
+      setInfo(await api.reprocessItemEmbedding(item.id));
+    } catch (e) {
+      useStore.getState().toast((e as Error).message, 'error');
+    }
+    setBusy(false);
+  };
+
+  return (
+    <Section
+      title="Semantic search"
+      right={
+        <button className="icon-btn xs" title="Re-process this item" disabled={busy} onClick={reprocess}>
+          {busy ? <Loader2 size={13} className="spin" /> : <RefreshCw size={13} />}
+        </button>
+      }
+    >
+      <div className="embed-parts">
+        {info.parts.map((p) => (
+          <div key={p.kind} className="embed-part">
+            <span className="embed-kind">
+              {p.kind === 'image' ? <ImageIcon size={13} /> : <Type size={13} />}
+              {p.kind === 'image' ? 'Image' : 'Text'}
+            </span>
+            <span className={cls('embed-part-state', p.state)} title={p.error || undefined}>
+              {p.state === 'done' && (
+                <>
+                  <Check size={13} /> Embedded
+                </>
+              )}
+              {p.state === 'pending' && (
+                <>
+                  <CircleDashed size={13} /> Waiting
+                </>
+              )}
+              {p.state === 'failed' && (
+                <>
+                  <CircleAlert size={13} /> Failed
+                </>
+              )}
+            </span>
+            {p.state === 'failed' && p.error && <span className="embed-part-error">{p.error}</span>}
+          </div>
+        ))}
+      </div>
+    </Section>
   );
 }
 

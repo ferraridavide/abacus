@@ -94,9 +94,11 @@ export interface ProviderField {
   placeholder?: string;
   hint?: string;
   options?: { value: string; label: string }[];
+  /** a heading the form sorts the field under */
+  group?: string;
 }
 
-/** An import provider's settings. Secret values come back as whether they're set. */
+/** An import provider's (or the embeddings service's) settings. Secret values come back as whether they're set. */
 export interface ProviderSettings {
   id: string;
   name: string;
@@ -111,6 +113,46 @@ export interface ProviderTest {
   ok: boolean;
   message: string;
   sites?: string[];
+}
+
+/** Background embedding of the library, for semantic search. */
+export interface EmbeddingStatus {
+  /** 'error': the service can't be reached; it's tried again every minute */
+  state: 'off' | 'running' | 'complete' | 'error';
+  total: number;
+  done: number;
+  failed: number;
+  pending: number;
+  /** embedded images and texts (an item can have both) */
+  images: number;
+  texts: number;
+  error: string | null;
+  lastFailure?: string | null;
+}
+
+export type EmbeddingKind = 'image' | 'text';
+
+/** How close an item came to a semantic search, and through what. */
+export interface SearchScore {
+  score: number;
+  kind: EmbeddingKind;
+  /** it also contains the search words, which ranks it a little higher */
+  textMatch: boolean;
+}
+
+export interface EmbeddingPart {
+  kind: EmbeddingKind;
+  state: 'pending' | 'done' | 'failed';
+  dimensions?: number;
+  error?: string | null;
+  at?: number;
+}
+
+/** One item's embeddings: its image (when it has one) and its text (when there's any to go by). */
+export interface ItemEmbedding {
+  state: 'off' | 'pending' | 'done' | 'failed';
+  model?: string;
+  parts: EmbeddingPart[];
 }
 
 export interface JobEntry {

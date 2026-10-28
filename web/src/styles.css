@@ -583,6 +583,14 @@ a {
   color: var(--text-faint);
   font-weight: 600;
 }
+.menu-note {
+  padding: 6px 9px 8px;
+  margin-bottom: 4px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+}
 .menu-item {
   display: flex;
   align-items: center;
@@ -2191,7 +2199,7 @@ a {
 }
 .settings-modal {
   width: 720px;
-  height: min(520px, calc(100vh - 80px));
+  height: min(580px, calc(100vh - 80px));
   display: grid;
   grid-template-columns: 190px 1fr;
   /* a definite row, so the body scrolls instead of stretching the dialog */
@@ -2898,5 +2906,333 @@ a {
   }
   .viewer-stage {
     touch-action: pinch-zoom;
+  }
+}
+
+/* Semantic search: an item's embeddings in the inspector */
+.embed-parts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.embed-part {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 10px;
+  font-size: 12px;
+}
+.embed-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-dim);
+}
+.embed-kind svg {
+  color: var(--text-faint);
+}
+.embed-part-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-faint);
+}
+.embed-part-state.done {
+  color: var(--ok);
+}
+.embed-part-state.failed {
+  color: var(--danger);
+}
+.embed-part-error {
+  flex-basis: 100%;
+  color: var(--text-faint);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+/* Semantic search: similarity score in a card's corner */
+.score-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  pointer-events: auto;
+  transition: right 0.15s;
+}
+.score-badge svg {
+  opacity: 0.7;
+}
+.score-badge.text-match {
+  box-shadow: inset 0 0 0 1px rgba(91, 140, 255, 0.85);
+}
+.card.selected .score-badge {
+  right: 36px;
+}
+
+/* Semantic search settings */
+.semantic {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 100%;
+}
+.semantic-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(91, 140, 255, 0.1), transparent 55%),
+    radial-gradient(120% 140% at 100% 100%, rgba(139, 92, 255, 0.08), transparent 55%),
+    var(--panel-2);
+  transition: border-color 0.2s;
+}
+.semantic-hero.on {
+  border-color: rgba(91, 140, 255, 0.3);
+}
+.semantic-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 6px 18px rgba(91, 140, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.semantic-intro {
+  flex: 1;
+  min-width: 0;
+}
+.semantic-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+.semantic-intro p {
+  margin: 2px 0 0;
+  color: var(--text-faint);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.semantic-status {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+}
+.semantic-status-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.state-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 11px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.state-pill.complete {
+  color: var(--ok);
+  background: rgba(61, 220, 151, 0.12);
+}
+.state-pill.error {
+  color: var(--danger);
+  background: rgba(255, 95, 95, 0.12);
+}
+.state-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.btn.ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-dim);
+}
+.btn.ghost:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.btn.sm {
+  height: 26px;
+  padding: 0 9px;
+  gap: 5px;
+  font-size: 12px;
+}
+.semantic-count {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.semantic-count b {
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.semantic-pct {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.semantic-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.semantic-bar div {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 0.4s ease;
+}
+.semantic-status.complete .semantic-bar div {
+  background: var(--ok);
+}
+.semantic-status.error .semantic-bar div {
+  background: var(--danger);
+}
+.semantic-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  background: var(--panel-3);
+  font-variant-numeric: tabular-nums;
+}
+.chip svg {
+  color: var(--text-faint);
+}
+.chip.danger,
+.chip.danger svg {
+  color: var(--danger);
+}
+.semantic-note {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  overflow-wrap: anywhere;
+}
+.semantic-note.error {
+  color: var(--danger);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.form-group-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 2px;
+}
+.form-group-icon {
+  display: grid;
+  place-items: center;
+  color: var(--text-faint);
+}
+.form-group-label {
+  font-weight: 600;
+  font-size: 12.5px;
+}
+.form-group-desc {
+  color: var(--text-faint);
+  font-size: 11.5px;
+}
+.form-group-desc::before {
+  content: '·';
+  margin-right: 7px;
+}
+.form-group-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 14px;
+  padding: 14px 16px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+}
+.form-cell {
+  min-width: 0;
+}
+.form-cell.wide {
+  grid-column: 1 / -1;
+}
+.form-group-card .text-input,
+.form-group-card .select {
+  background: var(--panel);
+}
+
+.semantic-foot {
+  position: sticky;
+  bottom: -22px;
+  margin: auto -22px -22px;
+  padding: 12px 22px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  backdrop-filter: blur(10px);
+  z-index: 1;
+}
+
+@media (max-width: 760px) {
+  .form-group-card {
+    grid-template-columns: 1fr;
+  }
+  .form-group-desc {
+    display: none;
+  }
+  .semantic-foot {
+    flex-wrap: wrap;
+    bottom: -16px;
+    margin: auto -16px -16px;
+    padding: 12px 16px;
+  }
+  .semantic-foot .provider-status {
+    flex-basis: 100%;
   }
 }

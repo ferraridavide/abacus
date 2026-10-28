@@ -80,7 +80,21 @@ db.exec(`
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL                   -- JSON
   );
+
 `);
+
+const EMBEDDINGS_TABLE = `
+  CREATE TABLE IF NOT EXISTS item_embeddings (
+    item_id    TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    kind       TEXT NOT NULL,             -- image | text
+    model      TEXT NOT NULL,             -- rows from another model count as missing
+    vector     BLOB,                      -- unit-length Float32 values; NULL when embedding failed
+    error      TEXT,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (item_id, kind)
+  );
+`;
+db.exec(EMBEDDINGS_TABLE);
 
 // v1 -> v2: backfill item_colors from the palette JSON column
 if (db.prepare('PRAGMA user_version').get().user_version < 2) {
@@ -110,6 +124,15 @@ if (db.prepare('PRAGMA user_version').get().user_version < 3) {
     }
   }
   db.exec('PRAGMA user_version = 3');
+  db.exec('COMMIT');
+}
+
+// v3 -> v4: embeddings per kind (image, text); the old image-only ones are computed again
+if (db.prepare('PRAGMA user_version').get().user_version < 4) {
+  db.exec('BEGIN');
+  db.exec('DROP TABLE IF EXISTS item_embeddings');
+  db.exec(EMBEDDINGS_TABLE);
+  db.exec('PRAGMA user_version = 4');
   db.exec('COMMIT');
 }
 

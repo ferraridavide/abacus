@@ -1,4 +1,16 @@
-import type { ActiveProvider, Folder, Item, Job, ProviderSettings, ProviderTest, Stats, TagCount } from './types';
+import type {
+  ActiveProvider,
+  EmbeddingStatus,
+  Folder,
+  Item,
+  ItemEmbedding,
+  Job,
+  ProviderSettings,
+  ProviderTest,
+  SearchScore,
+  Stats,
+  TagCount,
+} from './types';
 
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -24,7 +36,10 @@ export type BatchAction =
 export const api = {
   bootstrap: () => request<{ stats: Stats; folders: Folder[]; tags: TagCount[] }>('GET', '/api/bootstrap'),
   items: (params: Record<string, string>) =>
-    request<{ items: Item[]; total: number; offset: number }>('GET', '/api/items?' + new URLSearchParams(params).toString()),
+    request<{ items: Item[]; total: number; offset: number; ranking?: 'similarity'; scores?: Record<string, SearchScore> }>(
+      'GET',
+      '/api/items?' + new URLSearchParams(params).toString()
+    ),
   itemIds: (params: Record<string, string>) =>
     request<{ ids: string[] }>('GET', '/api/items/ids?' + new URLSearchParams(params).toString()),
   updateItem: (id: string, patch: Partial<Pick<Item, 'name' | 'notes' | 'rating' | 'url' | 'tags' | 'folders'>>) =>
@@ -44,6 +59,15 @@ export const api = {
     request<ProviderSettings>('PATCH', `/api/settings/providers/${id}`, body),
   testProvider: (id: string, values: Record<string, string>) =>
     request<ProviderTest>('POST', `/api/settings/providers/${id}/test`, { values }),
+  embeddingSettings: () => request<ProviderSettings>('GET', '/api/settings/embeddings'),
+  updateEmbeddings: (body: { enabled?: boolean; values?: Record<string, string> }) =>
+    request<ProviderSettings>('PATCH', '/api/settings/embeddings', body),
+  testEmbeddings: (values: Record<string, string>) =>
+    request<ProviderTest>('POST', '/api/settings/embeddings/test', { values }),
+  embeddingStatus: () => request<EmbeddingStatus>('GET', '/api/embeddings/status'),
+  reprocessEmbeddings: () => request<EmbeddingStatus>('POST', '/api/embeddings/reprocess'),
+  itemEmbedding: (id: string) => request<ItemEmbedding>('GET', `/api/items/${id}/embedding`),
+  reprocessItemEmbedding: (id: string) => request<ItemEmbedding>('POST', `/api/items/${id}/embedding`),
   job: (id: string) => request<Job>('GET', `/api/jobs/${id}`),
   /** Returns null when the zip isn't an Are.na export. */
   importArena: async (file: File, folderId?: string): Promise<Job | null> => {

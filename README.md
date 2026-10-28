@@ -11,6 +11,8 @@ It runs as a web app with a Node.js backend and a SQLite database, and ships as 
 - Nested folders with colors. An item can belong to more than one folder.
 - Tags, notes, and 0–5 star ratings.
 - Search across names, notes, tags, post text, authors, and URLs.
+- Optional semantic search that finds images, GIFs, videos, links, and posts by what they are about, using
+  embeddings from an external service with an OpenAI-compatible API, such as Ollama.
 - Filters by type, source, rating, and dominant color.
 - Import from X (Twitter) post links, image and video URLs, web pages, Are.na channel exports, and local
   files.

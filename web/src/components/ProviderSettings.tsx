@@ -58,11 +58,28 @@ function summary(p: ProviderSettings) {
   return url ? `On · ${p.values[url.key]}` : 'On';
 }
 
-/** One provider's settings; the dialog's title row names it. */
-export function ProviderDetail({ provider, onSaved }: { provider: ProviderSettings; onSaved: (next: ProviderSettings) => void }) {
+/** Where a settings form is tested and saved. */
+export interface SettingsService {
+  test: (values: Record<string, string>) => Promise<ProviderTest>;
+  update: (body: { enabled?: boolean; values?: Record<string, string> }) => Promise<ProviderSettings>;
+}
+
+const providerService = (id: string): SettingsService => ({
+  test: (values) => api.testProvider(id, values),
+  update: (body) => api.updateProvider(id, body),
+});
+
+/**
+ * A settings form drawn from the fields a service declares: values, the on/off switch, test and save. Secrets start
+ * empty and are only sent when typed or removed.
+ */
+export function useServiceForm(
+  provider: ProviderSettings,
+  service: SettingsService,
+  onSaved: (next: ProviderSettings) => void
+) {
   const [saved, setSaved] = useState(provider);
   const [enabled, setEnabled] = useState(provider.enabled);
-  // Plain values for the form; secrets start empty and are only sent when typed or removed.
   const [values, setValues] = useState(() => initialValues(provider));
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState<'' | 'test' | 'save'>('');
@@ -72,8 +89,14 @@ export function ProviderDetail({ provider, onSaved }: { provider: ProviderSettin
     setValues((v) => ({ ...v, [key]: value }));
     setDirty(true);
     setStatus(null);
-    // Filling in a provider that was never set up turns it on.
+    // Filling in a service that was never set up turns it on.
     if (!saved.enabled && !hasRequired(saved) && key === firstRequired(saved)?.key && value) setEnabled(true);
+  };
+
+  const toggle = () => {
+    setEnabled(!enabled);
+    setDirty(true);
+    setStatus(null);
   };
 
   const payload = () => {
@@ -88,7 +111,7 @@ export function ProviderDetail({ provider, onSaved }: { provider: ProviderSettin
   const test = async () => {
     setBusy('test');
     try {
-      setStatus(await api.testProvider(saved.id, payload()));
+      setStatus(await service.test(payload()));
     } catch (e) {
       setStatus({ ok: false, message: (e as Error).message });
     }
@@ -98,19 +121,37 @@ export function ProviderDetail({ provider, onSaved }: { provider: ProviderSettin
   const save = async () => {
     setBusy('save');
     try {
-      const next = await api.updateProvider(saved.id, { enabled, values: payload() });
+      const next = await service.update({ enabled, values: payload() });
       setSaved(next);
       onSaved(next);
       setEnabled(next.enabled);
       setValues(initialValues(next));
       setDirty(false);
-      // Check the saved settings right away, so a typo shows up here rather than during an import.
-      setStatus(next.enabled ? await api.testProvider(next.id, {}) : { ok: true, message: 'Saved. This provider is off.' });
+      // Check the saved settings right away, so a typo shows up here rather than later.
+      setStatus(next.enabled ? await service.test({}) : { ok: true, message: `Saved. ${next.name} is off.` });
     } catch (e) {
       setStatus({ ok: false, message: (e as Error).message });
     }
     setBusy('');
   };
+
+  const canTest = !busy && !!values[firstRequired(saved)?.key ?? ''];
+  return { saved, enabled, toggle, values, change, dirty, busy, status, test, save, canTest };
+}
+
+/** One provider's settings; the dialog's title row names it. */
+export function ProviderDetail({
+  provider,
+  onSaved,
+}: {
+  provider: ProviderSettings;
+  onSaved: (next: ProviderSettings) => void;
+}) {
+  const { saved, enabled, toggle, values, change, dirty, busy, status, test, save, canTest } = useServiceForm(
+    provider,
+    providerService(provider.id),
+    onSaved
+  );
 
   return (
     <div className="provider-detail">
@@ -123,11 +164,7 @@ export function ProviderDetail({ provider, onSaved }: { provider: ProviderSettin
           aria-checked={enabled}
           className={cls('switch', enabled && 'on')}
           title={enabled ? 'Turn off' : 'Turn on'}
-          onClick={() => {
-            setEnabled(!enabled);
-            setDirty(true);
-            setStatus(null);
-          }}
+          onClick={toggle}
         />
       </div>
 
@@ -160,7 +197,7 @@ export function ProviderDetail({ provider, onSaved }: { provider: ProviderSettin
             </a>
           )}
         </div>
-        <button className="btn" disabled={!!busy || !values[firstRequired(saved)?.key ?? '']} onClick={test}>
+        <button className="btn" disabled={!canTest} onClick={test}>
           {busy === 'test' ? <Loader2 size={14} className="spin" /> : null} Test connection
         </button>
         <button className="btn primary" disabled={!!busy || !dirty} onClick={save}>
@@ -174,7 +211,7 @@ export function ProviderDetail({ provider, onSaved }: { provider: ProviderSettin
 
 const REMOVED = '\u0000removed';
 
-function FieldInput({
+export function FieldInput({
   field,
   value,
   secretSet,
