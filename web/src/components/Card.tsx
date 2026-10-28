@@ -179,7 +179,7 @@ export function BookmarkFace({ item, large }: { item: Item; large?: boolean }) {
         <Globe size={13} /> {item.author || hostOf(item.url)}
       </div>
       <div className="bm-title">{item.name}</div>
-      {item.text && <div className="bm-text dim">{item.text}</div>}
+      {(item.description || item.text) && <div className="bm-text dim">{item.description || item.text}</div>}
       <div className="bm-foot">
         <Link2 size={12} /> {hostOf(item.url)}
       </div>

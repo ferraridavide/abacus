@@ -173,7 +173,7 @@ async function importLink(url, cfg, { folderIds = [], tags = [] } = {}) {
   const common = {
     url,
     source: 'social',
-    text: page.description,
+    description: page.description,
     author: page.siteName,
     folderIds,
     tags,

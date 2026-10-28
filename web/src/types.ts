@@ -26,6 +26,7 @@ export interface Item {
   authorHandle: string | null;
   authorAvatar: string | null;
   text: string | null;
+  description: string | null;
   notes: string | null;
   rating: number;
   postedAt: number | null;

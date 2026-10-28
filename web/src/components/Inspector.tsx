@@ -63,10 +63,12 @@ function SingleInspector({ item }: { item: Item }) {
   const { updateItem, set, setFilters, batch, toast } = useStore.getState();
   const folders = useStore((s) => s.folders);
   const [name, setName] = useState(item.name);
+  const [description, setDescription] = useState(item.description || '');
   const [notes, setNotes] = useState(item.notes || '');
   const [url, setUrl] = useState(item.url || '');
 
   useEffect(() => setName(item.name), [item.name]);
+  useEffect(() => setDescription(item.description || ''), [item.description]);
   useEffect(() => setNotes(item.notes || ''), [item.notes]);
   useEffect(() => setUrl(item.url || ''), [item.url]);
 
@@ -160,6 +162,20 @@ function SingleInspector({ item }: { item: Item }) {
             </a>
           )}
         </div>
+      )}
+
+      {(item.description || item.source === 'web' || item.source === 'social') && (
+        <Section title="Description">
+          <textarea
+            className="insp-notes"
+            placeholder="Add a description…"
+            value={description}
+            rows={Math.min(8, Math.max(2, Math.ceil(description.length / 40)))}
+            onChange={(e) => setDescription(e.target.value)}
+            onBlur={() => description !== (item.description || '') && updateItem(item.id, { description })}
+            onKeyDown={(e) => e.stopPropagation()}
+          />
+        </Section>
       )}
 
       <Section title="Notes">

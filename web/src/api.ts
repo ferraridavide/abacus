@@ -42,7 +42,7 @@ export const api = {
     ),
   itemIds: (params: Record<string, string>) =>
     request<{ ids: string[] }>('GET', '/api/items/ids?' + new URLSearchParams(params).toString()),
-  updateItem: (id: string, patch: Partial<Pick<Item, 'name' | 'notes' | 'rating' | 'url' | 'tags' | 'folders'>>) =>
+  updateItem: (id: string, patch: Partial<Pick<Item, 'name' | 'description' | 'notes' | 'rating' | 'url' | 'tags' | 'folders'>>) =>
     request<Item>('PATCH', `/api/items/${id}`, patch),
   batch: (body: { ids: string[]; action: BatchAction; tags?: string[]; folderId?: string; fromFolderId?: string }) =>
     request<{ ok: boolean }>('POST', '/api/items/batch', body),

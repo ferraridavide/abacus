@@ -128,7 +128,7 @@ export async function importUrl(url, { folderIds = [], tags = [] } = {}) {
     url,
     mediaUrl: url,
     source: 'web',
-    text: page.description,
+    description: page.description,
     author: page.siteName,
     folderIds,
     tags,

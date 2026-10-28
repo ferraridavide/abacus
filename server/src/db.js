@@ -39,7 +39,8 @@ db.exec(`
     author        TEXT,
     author_handle TEXT,
     author_avatar TEXT,
-    text          TEXT,                   -- tweet text / page description
+    text          TEXT,                   -- post text
+    description   TEXT,                   -- linked page's meta description
     notes         TEXT,
     rating        INTEGER NOT NULL DEFAULT 0,
     posted_at     INTEGER,
@@ -133,6 +134,17 @@ if (db.prepare('PRAGMA user_version').get().user_version < 4) {
   db.exec('DROP TABLE IF EXISTS item_embeddings');
   db.exec(EMBEDDINGS_TABLE);
   db.exec('PRAGMA user_version = 4');
+  db.exec('COMMIT');
+}
+
+// v4 -> v5: links keep their page's meta description in its own column instead of the post text one
+if (db.prepare('PRAGMA user_version').get().user_version < 5) {
+  db.exec('BEGIN');
+  if (!db.prepare("SELECT 1 FROM pragma_table_info('items') WHERE name = 'description'").get()) {
+    db.exec('ALTER TABLE items ADD COLUMN description TEXT');
+  }
+  db.exec("UPDATE items SET description = text, text = NULL WHERE source IN ('web', 'social') AND text IS NOT NULL");
+  db.exec('PRAGMA user_version = 5');
   db.exec('COMMIT');
 }
 

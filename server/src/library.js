@@ -34,6 +34,7 @@ export function serializeItem(row) {
     authorHandle: row.author_handle,
     authorAvatar: row.author_avatar,
     text: row.text,
+    description: row.description,
     notes: row.notes,
     rating: row.rating,
     postedAt: row.posted_at,
@@ -126,9 +127,9 @@ export async function addItem(input) {
   tx(() => {
     db.prepare(
       `INSERT INTO items (id, name, type, ext, mime, file, thumb, width, height, duration, size, palette,
-        url, media_url, source, author, author_handle, author_avatar, text, notes, rating, posted_at,
-        created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`
+        url, media_url, source, author, author_handle, author_avatar, text, description, notes, rating,
+        posted_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`
     ).run(
       id,
       name,
@@ -149,6 +150,7 @@ export async function addItem(input) {
       input.authorHandle || null,
       input.authorAvatar || null,
       input.text || null,
+      input.description || null,
       input.notes || null,
       input.postedAt || null,
       now,
@@ -240,12 +242,13 @@ function buildQuery(params) {
       const like = `%${token.replace(/[%_]/g, (m) => '\\' + m)}%`;
       where.push(`(
         lower(i.name) LIKE ? ESCAPE '\\' OR lower(COALESCE(i.notes,'')) LIKE ? ESCAPE '\\'
-        OR lower(COALESCE(i.text,'')) LIKE ? ESCAPE '\\' OR lower(COALESCE(i.author,'')) LIKE ? ESCAPE '\\'
+        OR lower(COALESCE(i.text,'')) LIKE ? ESCAPE '\\' OR lower(COALESCE(i.description,'')) LIKE ? ESCAPE '\\'
+        OR lower(COALESCE(i.author,'')) LIKE ? ESCAPE '\\'
         OR lower(COALESCE(i.author_handle,'')) LIKE ? ESCAPE '\\' OR lower(COALESCE(i.url,'')) LIKE ? ESCAPE '\\'
         OR lower(COALESCE(i.ext,'')) = ?
         OR EXISTS (SELECT 1 FROM item_tags t WHERE t.item_id = i.id AND lower(t.tag) LIKE ? ESCAPE '\\')
       )`);
-      args.push(like, like, like, like, like, like, token, like);
+      args.push(like, like, like, like, like, like, like, token, like);
     }
   }
 
@@ -388,7 +391,7 @@ export function listTags() {
 // ---------- updates ----------
 
 export function updateItem(id, patch) {
-  const fields = { name: 'name', notes: 'notes', rating: 'rating', url: 'url' };
+  const fields = { name: 'name', description: 'description', notes: 'notes', rating: 'rating', url: 'url' };
   const sets = [];
   const args = [];
   for (const [k, col] of Object.entries(fields)) {
@@ -413,7 +416,7 @@ export function updateItem(id, patch) {
       for (const fid of patch.folders) linkFolder(id, fid, Date.now());
     }
   });
-  if (patch.name !== undefined || patch.notes !== undefined || Array.isArray(patch.tags)) textChanged([id]);
+  if (patch.name !== undefined || patch.description !== undefined || patch.notes !== undefined || Array.isArray(patch.tags)) textChanged([id]);
   return getItem(id);
 }
 

@@ -239,17 +239,17 @@ function dot(a, b) {
 // ---------- what gets embedded ----------
 
 // Each item gets up to two embeddings: its image (a thumbnail: photos, GIFs, video posters, link previews) and its
-// text (titles, post text, notes, tags). Uploaded media are named after their files, so their names only count
+// text (titles, post text, descriptions, notes, tags). Uploaded media are named after their files, so their names only count
 // when there's no image to go by.
 const KINDS = ['image', 'text'];
 
 const HAS_IMAGE = 'i.thumb IS NOT NULL';
 const HAS_TEXT = `(i.thumb IS NULL OR i.type = 'bookmark' OR i.source != 'upload'
-  OR COALESCE(i.text, '') != '' OR COALESCE(i.notes, '') != ''
+  OR COALESCE(i.text, '') != '' OR COALESCE(i.description, '') != '' OR COALESCE(i.notes, '') != ''
   OR EXISTS (SELECT 1 FROM item_tags t WHERE t.item_id = i.id))`;
 const HAS = { image: HAS_IMAGE, text: HAS_TEXT };
 
-const ROW_COLUMNS = `i.id, i.name, i.type, i.source, i.thumb, i.text, i.notes, i.author,
+const ROW_COLUMNS = `i.id, i.name, i.type, i.source, i.thumb, i.text, i.description, i.notes, i.author,
   (SELECT group_concat(tag, ', ') FROM item_tags t WHERE t.item_id = i.id) AS tags`;
 
 /** The text embedded for an item; never empty for the items HAS_TEXT picks. */
@@ -258,6 +258,7 @@ function textFor(row) {
   if (!row.thumb || row.type === 'bookmark' || row.source !== 'upload') parts.push(row.name);
   if (row.author) parts.push(`By ${row.author}`);
   if (row.text && row.text !== row.name) parts.push(row.text);
+  if (row.description && row.description !== row.name) parts.push(row.description);
   if (row.notes) parts.push(row.notes);
   if (row.tags) parts.push(`Tags: ${row.tags}`);
   return parts.join('\n').slice(0, 4000);
