@@ -1,0 +1,268 @@
+/* Styles only the demo build uses; loaded with its chunk, so a regular build doesn't ship them. */
+
+/* ---------------- toasts and the badge ---------------- */
+.toast.demo {
+  border-color: rgba(254, 202, 87, 0.35);
+}
+.toast.demo svg {
+  flex-shrink: 0;
+  color: #feca57;
+}
+.demo-badge {
+  position: fixed;
+  right: 18px;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  z-index: 290;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(254, 202, 87, 0.45);
+  background: rgba(40, 33, 14, 0.92);
+  color: #feca57;
+  font: 600 11px/1.4 var(--font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+}
+.demo-badge:hover {
+  background: rgba(58, 47, 18, 0.96);
+}
+/* toasts and import progress stack above the badge; on phones both clear the selection bar */
+:root:has(.demo-badge) .notifications {
+  bottom: calc(54px + env(safe-area-inset-bottom));
+}
+:root:has(.demo-badge) .app.selecting .notifications {
+  bottom: calc(112px + env(safe-area-inset-bottom));
+}
+.app.selecting ~ .demo-badge {
+  bottom: calc(76px + env(safe-area-inset-bottom));
+}
+@media (max-width: 860px) {
+  .demo-badge {
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+}
+.demo-boot {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  background: var(--bg);
+}
+
+/* ---------------- demo landing page ---------------- */
+html.landing-page {
+  height: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scroll-snap-type: y proximity;
+  scrollbar-width: none;
+}
+html.landing-page::-webkit-scrollbar {
+  display: none;
+}
+html.landing-page body,
+html.landing-page #root {
+  height: auto;
+  overflow: visible;
+}
+/* dialogs and the viewer own the wheel: the page doesn't scroll (and zoom the app out) behind them */
+html.landing-page:has(.modal-backdrop, .sheet-backdrop, .viewer) {
+  overflow: hidden;
+}
+
+.landing {
+  /* scroll progress, 0 on the hero and 1 with the app on screen; set from Landing.tsx */
+  --e: 0;
+  /* margin around the app, width of the translucent border, and the preview's starting scale */
+  --m: 28px;
+  --b: 8px;
+  --s0: 0.72;
+  /* how far the app's own fixed-position overlays sit from the screen edge, once the frame is live */
+  --o: calc(var(--m) + var(--b) + 1px);
+  position: relative;
+  background:
+    radial-gradient(60% 50% at 50% 0%, rgba(91, 140, 255, 0.14), transparent 70%),
+    radial-gradient(40% 40% at 85% 30%, rgba(139, 92, 255, 0.1), transparent 70%),
+    var(--bg);
+}
+
+.landing-hero {
+  position: fixed;
+  inset: 0 0 20svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 0 24px;
+  text-align: center;
+  opacity: calc(1 - var(--e) * 1.6);
+  transform: translateY(calc(var(--e) * -6svh)) scale(calc(1 - var(--e) * 0.06));
+}
+.landing-hero .logo {
+  margin-bottom: 6px;
+  filter: drop-shadow(0 18px 40px rgba(91, 140, 255, 0.35));
+}
+.landing-hero h1 {
+  margin: 0;
+  font-size: clamp(44px, 8vw, 84px);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  background: linear-gradient(180deg, #ffffff 30%, #a1a3ab);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.landing-hero p {
+  margin: 0;
+  max-width: 460px;
+  color: var(--text-dim);
+  font-size: clamp(15px, 1.6vw, 17px);
+  line-height: 1.55;
+}
+.landing-actions {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+.landing-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-weight: 500;
+  transition: background 0.15s, border-color 0.15s;
+}
+.landing-cta:hover {
+  background: var(--accent-soft);
+  border-color: rgba(91, 140, 255, 0.4);
+}
+.landing-cta.primary {
+  border-color: transparent;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(91, 140, 255, 0.3);
+}
+.landing-cta.primary:hover {
+  background: #6d99ff;
+}
+.landing-nudge {
+  animation: landing-nudge 1.8s ease-in-out infinite;
+}
+@keyframes landing-nudge {
+  50% {
+    transform: translateY(3px);
+  }
+}
+
+/* the page's scroll length: the hero, then the travel that brings the app up */
+.landing-track {
+  height: 190svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.landing-snap {
+  height: 1px;
+  scroll-snap-align: start;
+}
+.landing-snap.end {
+  scroll-snap-align: end;
+}
+
+.landing-frame {
+  position: fixed;
+  inset: var(--m);
+  z-index: 2;
+  padding: var(--b);
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 40px 120px rgba(0, 0, 0, 0.55),
+    0 0 80px rgba(91, 140, 255, calc(0.14 * (1 - var(--e))));
+  transform-origin: 50% 0;
+  /* starts with its top at 80% of the screen, scaled down; ends filling the screen inside the margin */
+  transform: translateY(calc((1 - var(--e)) * (80svh - var(--m))))
+    scale(calc(var(--s0) + (1 - var(--s0)) * var(--e)));
+  cursor: pointer;
+}
+.landing-frame.live {
+  transform: none;
+  cursor: auto;
+}
+/* the glass is a layer of its own: a backdrop-filter on the frame would make it the containing block of the app's
+   fixed-position overlays, just like a transform */
+.landing-frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+.landing-screen {
+  position: relative;
+  height: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--bg);
+}
+/* while it's a preview the app is its own little screen: its overlays are positioned and clipped inside it */
+.landing-frame:not(.live) .landing-screen {
+  contain: layout paint;
+  pointer-events: none;
+}
+/* once live they're positioned against the viewport, so move the corner ones in by the margin */
+.landing-frame.live :is(.notifications, .demo-badge, .selection-bar) {
+  translate: calc(-1 * var(--o)) calc(-1 * var(--o));
+}
+.landing-frame.live .selection-bar {
+  translate: 0 calc(-1 * var(--o));
+}
+.landing .demo-boot {
+  height: 100%;
+}
+
+@media (max-width: 860px) {
+  /* the fixed toolbar is for home screen apps on iOS; in the frame it stays in the layout */
+  .landing-screen .toolbar {
+    position: relative;
+  }
+  .landing-screen .main {
+    padding-top: 0;
+  }
+  .landing-frame.live .sidebar {
+    top: var(--o);
+    bottom: var(--o);
+    left: var(--o);
+  }
+}
+@media (max-width: 760px) {
+  .landing {
+    --m: 10px;
+    --b: 5px;
+    --s0: 0.86;
+  }
+  .landing-frame {
+    border-radius: 16px;
+  }
+  .landing-screen {
+    border-radius: 11px;
+  }
+}

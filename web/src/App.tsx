@@ -90,7 +90,7 @@ export default function App() {
 
   // paste images or links anywhere
   useEffect(() => {
-    const onPaste = (e: ClipboardEvent) => {
+    const onPaste = async (e: ClipboardEvent) => {
       if (isTyping(e.target)) return;
       const s = useStore.getState();
       if (s.importOpen || s.folderPicker) return;
@@ -112,7 +112,7 @@ export default function App() {
       const { total, tweets } = countLinks(text);
       if (total) {
         e.preventDefault();
-        s.importText(text, folderId);
+        if (!(await s.importText(text, folderId))) return;
         s.toast(`Importing ${tweets ? `${tweets} X post${tweets > 1 ? 's' : ''}` : ''}${tweets && total > tweets ? ' + ' : ''}${total > tweets ? `${total - tweets} link${total - tweets > 1 ? 's' : ''}` : ''}…`);
       }
     };

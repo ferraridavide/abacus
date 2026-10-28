@@ -6,6 +6,7 @@ import {
   Download,
   ExternalLink,
   Eye,
+  FlaskConical,
   Folder as FolderIcon,
   FolderInput,
   FolderMinus,
@@ -125,7 +126,7 @@ function ItemMenu() {
           icon={<Copy size={14} />}
           label="Copy link"
           onClick={() => {
-            navigator.clipboard?.writeText(first.url || location.origin + first.fileUrl);
+            navigator.clipboard?.writeText(first.url || new URL(first.fileUrl!, location.href).href);
             s.toast('Link copied');
           }}
         />
@@ -381,7 +382,13 @@ export function Notifications() {
       })}
       {toasts.map((t) => (
         <div key={t.id} className={cls('toast', t.kind)}>
-          {t.kind === 'success' ? <CheckCircle2 size={15} /> : t.kind === 'error' ? <AlertCircle size={15} /> : null}
+          {t.kind === 'success' ? (
+            <CheckCircle2 size={15} />
+          ) : t.kind === 'error' ? (
+            <AlertCircle size={15} />
+          ) : t.kind === 'demo' ? (
+            <FlaskConical size={15} />
+          ) : null}
           {t.message}
         </div>
       ))}

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { api, type BatchAction } from './api';
+import { api, type BatchAction, type FolderPatch, type ItemPatch } from './api';
 import type {
   AutoplayMode,
   Filters,
@@ -19,7 +19,8 @@ import { isVideoFile, probeVideo } from './lib/upload';
 export interface Toast {
   id: number;
   message: string;
-  kind: 'info' | 'success' | 'error';
+  /** 'demo': something the demo can't do */
+  kind: 'info' | 'success' | 'error' | 'demo';
 }
 
 export interface ContextMenuState {
@@ -102,12 +103,12 @@ interface State {
   selectAll: () => Promise<void>;
   clearSelection: () => void;
 
-  updateItem: (id: string, patch: Parameters<typeof api.updateItem>[1]) => Promise<void>;
+  updateItem: (id: string, patch: ItemPatch) => Promise<void>;
   batch: (action: BatchAction, ids: string[], extra?: { tags?: string[]; folderId?: string; fromFolderId?: string }) => Promise<void>;
   trashSelected: () => Promise<void>;
 
   createFolder: (parentId?: string | null) => Promise<Folder | null>;
-  updateFolder: (id: string, patch: Parameters<typeof api.updateFolder>[1]) => Promise<void>;
+  updateFolder: (id: string, patch: FolderPatch) => Promise<void>;
   deleteFolder: (id: string) => Promise<void>;
 
   importText: (text: string, folderId?: string) => Promise<boolean>;
@@ -456,9 +457,11 @@ export const useStore = create<State>()(
       },
 
       toast: (message, kind = 'info') => {
+        // the same message twice at once says nothing new (a failed call can be reported by the backend and the caller)
+        if (get().toasts.some((t) => t.message === message)) return;
         const id = ++toastId;
         set({ toasts: [...get().toasts, { id, message, kind }] });
-        setTimeout(() => set({ toasts: get().toasts.filter((t) => t.id !== id) }), kind === 'error' ? 6000 : 3200);
+        setTimeout(() => set({ toasts: get().toasts.filter((t) => t.id !== id) }), kind === 'info' || kind === 'success' ? 3200 : 6000);
       },
 
       ask: (opts) => new Promise((resolve) => set({ confirm: { ...opts, resolve } })),

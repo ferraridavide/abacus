@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "vite",
+    "dev:demo": "vite --mode demo",
     "build": "tsc && vite build",
+    "build:demo": "tsc && vite build --mode demo",
     "typecheck": "tsc",
     "preview": "vite preview"
   },
