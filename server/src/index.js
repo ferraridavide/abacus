@@ -6,6 +6,7 @@ import fastifyCompress from '@fastify/compress';
 import { config, paths } from './config.js';
 import { routes } from './routes.js';
 import { kickEmbeddings } from './embeddings.js';
+import { backfillColorHistograms } from './library.js';
 
 const app = Fastify({ logger: { level: process.env.LOG_LEVEL || 'info' }, bodyLimit: 10 * 1024 * 1024 });
 
@@ -64,3 +65,6 @@ await app.listen({ port: config.port, host: config.host });
 
 // catch up on items added while the server was down or the embeddings service was off
 kickEmbeddings();
+
+// index real pixel colours for items imported before colour search existed
+backfillColorHistograms();

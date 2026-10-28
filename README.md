@@ -13,7 +13,7 @@ It runs as a web app with a Node.js backend and a SQLite database, and ships as 
 - Search across names, notes, tags, post text, authors, and URLs.
 - Optional semantic search that finds images, GIFs, videos, links, and posts by what they are about, using
   embeddings from an external service with an OpenAI-compatible API, such as Ollama.
-- Filters by type, source, rating, and dominant color.
+- Filters by type, source, rating, and color.
 - Import from X (Twitter) post links, image and video URLs, web pages, Are.na channel exports, and local
   files.
 - Optional import providers, such as [cobalt](https://github.com/imputnet/cobalt), for YouTube, TikTok,
@@ -84,6 +84,16 @@ Set these environment variables in `docker-compose.yml` or in your shell.
 
 Per-browser preferences, such as layout, thumbnail size, and video autoplay, are set in **Settings**. Import
 providers are also set up there, and apply to every browser.
+
+## Search by color
+
+Open **Filter** and use **Search by color** to find images that actually contain a colour, not images that were merely tagged with one.
+
+- **Recommended colors** are a starting set of swatches.
+- **Custom color** opens a colour picker for any colour.
+- **Color number** accepts a code directly: `#1e88e5`, `1e88e5`, `#f00`, or `rgb(30, 136, 229)`. Press Enter or leave the field to search.
+
+Matching reads the colour codes in the image itself. Each image is indexed as a histogram in OKLab, the perceptual colour space where distance tracks what people see, and results are ranked by how much of the image is that colour. An exact code ranks above a merely similar one, and a small accent of the right colour still matches. Clicking a swatch in the inspector runs the same search.
 
 ## Import content
 

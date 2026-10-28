@@ -54,7 +54,9 @@ export function Popover({
   useEffect(() => {
     if (!open || phone) return;
     const onDown = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as HTMLElement | null;
+      // a dropdown portaled to <body> (the colour picker) belongs to this menu
+      if (!ref.current?.contains(target) && !target?.closest('[data-popover-child]')) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
     window.addEventListener('mousedown', onDown);

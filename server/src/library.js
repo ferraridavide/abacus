@@ -3,7 +3,17 @@ import path from 'node:path';
 import { db, tx } from './db.js';
 import { paths } from './config.js';
 import { newId, safeName, VIDEO_EXTS } from './util.js';
-import { probeImage, makeThumb, extractPalette } from './media.js';
+import { probeImage, makeThumb, extractPalette, extractHistogram } from './media.js';
+import {
+  decodeHistogram,
+  packHistogram,
+  labToBin,
+  hexToRgb,
+  rgbToOklab,
+  colorScore,
+  queryBinRange,
+  parseColor,
+} from './color.js';
 import { kickEmbeddings, similarityTo, textChanged } from './embeddings.js';
 
 const ITEM_COLUMNS = `
@@ -105,6 +115,7 @@ export async function addItem(input) {
 
   let thumb = null;
   let palette = [];
+  let colorHist = null;
   const thumbSrc = input.thumbBuffer || (probe ? input.buffer : null);
   if (thumbSrc) {
     try {
@@ -112,6 +123,8 @@ export async function addItem(input) {
       thumb = `${id}.webp`;
       fs.writeFileSync(path.join(paths.thumbs, thumb), t);
       palette = await extractPalette(thumbSrc);
+      // index the actual pixel codes, not the dominant-colour tags
+      colorHist = await extractHistogram(thumbSrc);
       if (!width || !height) {
         const p = await probeImage(thumbSrc);
         if (p) {
@@ -128,8 +141,8 @@ export async function addItem(input) {
     db.prepare(
       `INSERT INTO items (id, name, type, ext, mime, file, thumb, width, height, duration, size, palette,
         url, media_url, source, author, author_handle, author_avatar, text, description, notes, rating,
-        posted_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`
+        posted_at, created_at, updated_at, color_hist)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`
     ).run(
       id,
       name,
@@ -154,9 +167,11 @@ export async function addItem(input) {
       input.notes || null,
       input.postedAt || null,
       now,
-      now
+      now,
+      colorHist
     );
     saveColors(id, palette);
+    saveHistogram(id, colorHist);
     for (const fid of input.folderIds || []) linkFolder(id, fid, now);
     for (const tag of input.tags || []) linkTag(id, tag);
   });
@@ -175,6 +190,40 @@ function linkFolder(itemId, folderId, at = Date.now()) {
 const insertColor = db.prepare('INSERT INTO item_colors (item_id, r, g, b, ratio) VALUES (?, ?, ?, ?, ?)');
 export function saveColors(itemId, palette) {
   for (const p of palette || []) insertColor.run(itemId, ...hexToRgb(p.hex), p.ratio);
+}
+
+const insertBin = db.prepare('INSERT INTO item_color_bins (item_id, l, a, b, w) VALUES (?, ?, ?, ?, ?)');
+const deleteBins = db.prepare('DELETE FROM item_color_bins WHERE item_id = ?');
+
+/**
+ * Decoded histograms, packed for scoring. Parsing the JSON of every candidate
+ * is the slowest part of a colour search, so it happens once per item instead
+ * of once per keystroke. saveHistogram() drops the entry when an item changes;
+ * the cache is capped so a huge library cannot grow without bound.
+ */
+const histCache = new Map();
+const HIST_CACHE_MAX = 20000;
+
+/** Packed histogram for a row: pixels first, stored swatches while a library is still being indexed. */
+function packedHistogram(row) {
+  let packed = histCache.get(row.id);
+  if (!packed) {
+    packed = packHistogram(decodeHistogram(row.color_hist));
+    if (!packed.length) return paletteAsBins(row.palette);
+    if (histCache.size >= HIST_CACHE_MAX) histCache.delete(histCache.keys().next().value);
+    histCache.set(row.id, packed);
+  }
+  return packed;
+}
+
+/** Persist an OKLab histogram so colour search can prefilter in SQL. */
+export function saveHistogram(itemId, colorHist) {
+  histCache.delete(itemId);
+  deleteBins.run(itemId);
+  for (const bin of decodeHistogram(colorHist)) {
+    if (!bin.w) continue;
+    insertBin.run(itemId, labToBin(bin.l, 0), labToBin(bin.a, 1), labToBin(bin.b, 2), bin.w);
+  }
 }
 
 function linkTag(itemId, tag) {
@@ -263,16 +312,66 @@ function buildQuery(params) {
   }
   if (params.view === 'trash') order = 'i.deleted_at DESC';
 
-  if (params.color && /^#?[0-9a-f]{6}$/i.test(params.color)) {
-    // "redmean" perceptual distance against the item's dominant colours, done in SQL so it can be paged
-    const [r, g, b] = hexToRgb(params.color);
-    where.push(`EXISTS (SELECT 1 FROM item_colors c WHERE c.item_id = i.id AND c.ratio >= 0.04 AND
-      (2 + (c.r + ?) / 512.0) * (c.r - ?) * (c.r - ?) + 4 * (c.g - ?) * (c.g - ?)
-      + (2 + (255 - (c.r + ?) / 2.0) / 256.0) * (c.b - ?) * (c.b - ?) < 32400)`);
-    args.push(r, r, r, g, g, r, b, b);
+  // Colour search matches the indexed pixel histogram, not the dominant-colour
+  // tags. The SQL clause is only a candidate prefilter; ranking happens in
+  // listItems so an exact code outranks a merely similar one.
+  const color = colorQuery(params.color);
+  if (color) {
+    const { lo, hi } = color.range;
+    where.push(`EXISTS (SELECT 1 FROM item_color_bins cb WHERE cb.item_id = i.id
+      AND cb.l BETWEEN ? AND ? AND cb.a BETWEEN ? AND ? AND cb.b BETWEEN ? AND ?)`);
+    args.push(lo[0], hi[0], lo[1], hi[1], lo[2], hi[2]);
   }
 
-  return { where: where.join(' AND '), args, order };
+  return { where: where.join(' AND '), args, order, color };
+}
+
+/**
+ * Resolve a colour query (#RGB, #RRGGBB, or rgb()) to the OKLab point it is
+ * scored against. Returns null when the input isn't a colour.
+ */
+function colorQuery(input) {
+  const hex = parseColor(input);
+  if (!hex) return null;
+  const lab = rgbToOklab(...hexToRgb(hex));
+  return { hex, lab, range: queryBinRange(lab) };
+}
+
+/**
+ * A candidate counts only when a real share of its pixels is perceptually the
+ * query colour — a 2% accent of the exact code qualifies, a faint tint does not.
+ */
+const COLOR_MIN_SCORE = 0.02;
+
+function rankByColor(rows, color) {
+  const ranked = [];
+  for (const row of rows) {
+    const score = colorScore(packedHistogram(row), color.lab);
+    if (score >= COLOR_MIN_SCORE) ranked.push({ row, score });
+  }
+  ranked.sort((x, y) => y.score - x.score || y.row.created_at - x.row.created_at);
+  return ranked;
+}
+
+/** Treat dominant-colour swatches as a coarse histogram, so search works before the backfill finishes. */
+function paletteAsBins(palette) {
+  if (!palette) return packHistogram([]);
+  let colors;
+  try {
+    colors = JSON.parse(palette);
+  } catch {
+    return packHistogram([]);
+  }
+  return packHistogram(
+    colors
+      .map((p) => {
+        const rgb = hexToRgb(p.hex);
+        if (!rgb) return null;
+        const [l, a, b] = rgbToOklab(...rgb);
+        return { l, a, b, w: p.ratio };
+      })
+      .filter(Boolean),
+  );
 }
 
 export const PAGE_MAX = 1000;
@@ -294,7 +393,31 @@ export async function listItems(params = {}) {
     for (const h of hits) if (h.score !== null) scores[h.id] = { score: h.score, kind: h.kind, textMatch: h.textMatch };
     return { items, total: ranked.length, offset, ranking: 'similarity', scores };
   }
-  const { where, args, order } = buildQuery(params);
+  const { where, args, order, color } = buildQuery(params);
+  // Colour search ranks every candidate by how much of the image is that
+  // colour, then pages the ranked list. Candidates come from the SQL prefilter
+  // (items whose histogram has a bin near the code), and only the page's rows
+  // are loaded in full — ranking needs the histogram and nothing else.
+  if (color) {
+    const candidates = db
+      .prepare(`SELECT i.id, i.color_hist, i.palette, i.created_at FROM items i WHERE ${where}`)
+      .all(...args);
+    const ranked = rankByColor(candidates, color);
+    const page = ranked.slice(offset, offset + limit);
+    const items = [];
+    if (page.length) {
+      const ids = page.map((r) => r.row.id);
+      const rows = db
+        .prepare(`SELECT ${ITEM_COLUMNS} FROM items i WHERE i.id IN (${ids.map(() => '?').join(',')})`)
+        .all(...ids);
+      const byId = new Map(rows.map((r) => [r.id, r]));
+      for (const id of ids) {
+        const row = byId.get(id);
+        if (row) items.push(serializeItem(row));
+      }
+    }
+    return { items, total: ranked.length, offset };
+  }
   const items = db
     .prepare(`SELECT ${ITEM_COLUMNS} FROM items i WHERE ${where} ORDER BY ${order} LIMIT ? OFFSET ?`)
     .all(...args, limit, offset)
@@ -307,7 +430,13 @@ export async function listItems(params = {}) {
 export async function listItemIds(params = {}) {
   const ranked = await rankedIds(params);
   if (ranked) return ranked.map((h) => h.id);
-  const { where, args, order } = buildQuery(params);
+  const { where, args, order, color } = buildQuery(params);
+  if (color) {
+    const rows = db
+      .prepare(`SELECT i.id, i.color_hist, i.palette, i.created_at FROM items i WHERE ${where}`)
+      .all(...args);
+    return rankByColor(rows, color).map((r) => r.row.id);
+  }
   return db
     .prepare(`SELECT i.id FROM items i WHERE ${where} ORDER BY ${order}`)
     .all(...args)
@@ -334,10 +463,14 @@ async function rankedIds(params) {
   if (!sim) return null;
 
   const base = buildQuery({ ...params, q: words.filter(isTagToken).join(' ') });
-  const candidates = db
-    .prepare(`SELECT i.id FROM items i WHERE ${base.where} ORDER BY i.created_at DESC`)
-    .all(...base.args)
-    .map((r) => ({ id: r.id, ...(sim.score(r.id) ?? { score: null, kind: null }) }));
+  let rows = db
+    .prepare(
+      `SELECT i.id, i.color_hist, i.palette, i.created_at FROM items i WHERE ${base.where} ORDER BY i.created_at DESC`
+    )
+    .all(...base.args);
+  // with a colour too, the words decide the order and the colour only keeps items that are really that colour
+  if (base.color) rows = rankByColor(rows, base.color).map((r) => r.row);
+  const candidates = rows.map((r) => ({ id: r.id, ...(sim.score(r.id) ?? { score: null, kind: null }) }));
   const full = buildQuery(params);
   const textMatches = new Set(
     db
@@ -356,11 +489,6 @@ async function rankedIds(params) {
     .map((c) => ({ ...c, textMatch: textMatches.has(c.id) }))
     .filter((c) => c.textMatch || (c.score !== null && c.score >= cutoff))
     .sort((a, b) => rank(b) - rank(a));
-}
-
-function hexToRgb(hex) {
-  const h = hex.replace('#', '');
-  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
 }
 
 export function getStats() {
@@ -550,4 +678,37 @@ export function updateFolder(id, patch) {
 export function deleteFolder(id) {
   db.prepare('DELETE FROM folders WHERE id = ?').run(id);
   return { ok: true };
+}
+
+/**
+ * Libraries created before colour search only stored a few dominant swatches.
+ * Rebuild the pixel histogram from each thumbnail in the background so search
+ * matches the colours that are actually in the image. Runs once per item;
+ * `color_hist = ''` marks an item whose thumbnail couldn't be read.
+ */
+export function backfillColorHistograms() {
+  const pending = db
+    .prepare("SELECT id, thumb FROM items WHERE color_hist IS NULL AND thumb IS NOT NULL")
+    .all();
+  if (!pending.length) return;
+  setTimeout(() => runColorBackfill(pending), 400);
+}
+
+async function runColorBackfill(pending) {
+  let done = 0;
+  for (const row of pending) {
+    let hist = '';
+    try {
+      const file = path.join(paths.thumbs, row.thumb);
+      if (fs.existsSync(file)) hist = (await extractHistogram(fs.readFileSync(file))) || '';
+    } catch {
+      hist = '';
+    }
+    tx(() => {
+      db.prepare('UPDATE items SET color_hist = ? WHERE id = ? AND color_hist IS NULL').run(hist, row.id);
+      if (hist) saveHistogram(row.id, hist);
+    });
+    done++;
+    if (done % 25 === 0) await new Promise((r) => setTimeout(r, 0));
+  }
 }

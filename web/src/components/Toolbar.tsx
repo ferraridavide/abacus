@@ -1,4 +1,5 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ArrowDownWideNarrow,
   ArrowUpNarrowWide,
@@ -45,11 +46,378 @@ const TYPES: { key: ItemType; label: string }[] = [
   { key: 'file', label: 'Other files' },
 ];
 
+/**
+ * Suggested swatches — a short starting set; the chevron opens a picker for
+ * any other colour. Matching always runs against the pixels in each image.
+ */
+const RECOMMENDED_COLORS = [
+  '#ffffff',
+  '#808080',
+  '#000000',
+  '#e53935',
+  '#fb8c00',
+  '#43a047',
+  '#1e88e5',
+  '#8e24aa',
+];
+
+function hexToHsv(hex: string) {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  let h = 0;
+  if (d) {
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h = (h * 60 + 360) % 360;
+  }
+  return { h, s: max === 0 ? 0 : d / max, v: max };
+}
+
+function hsvToHex(h: number, s: number, v: number) {
+  const c = v * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = v - c;
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  const byte = (n: number) => Math.round((n + m) * 255).toString(16).padStart(2, '0');
+  return '#' + byte(r) + byte(g) + byte(b);
+}
+
+/** #RGB, #RRGGBB, or rgb(r, g, b) → #rrggbb. */
+function parseColorInput(input: string): string | null {
+  const raw = input.trim();
+  const rgb = raw.match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
+  if (rgb) {
+    const parts = rgb.slice(1, 4).map(Number);
+    if (parts.some((n) => n > 255)) return null;
+    return (
+      '#' +
+      parts
+        .map((n) => n.toString(16).padStart(2, '0'))
+        .join('')
+    );
+  }
+  const hex = raw.replace(/^#/, '');
+  if (/^[0-9a-f]{3}$/i.test(hex)) return '#' + hex.split('').map((c) => c + c).join('').toLowerCase();
+  if (/^[0-9a-f]{6}$/i.test(hex)) return '#' + hex.toLowerCase();
+  return null;
+}
+
 const LAYOUTS: { key: LayoutMode; icon: ReactNode; label: string }[] = [
   { key: 'masonry', icon: <Columns3 size={15} />, label: 'Waterfall' },
   { key: 'justified', icon: <Rows3 size={15} />, label: 'Justified' },
   { key: 'grid', icon: <Grid2x2 size={15} />, label: 'Grid' },
 ];
+
+/**
+ * The classic image-editor colour dropdown: a saturation/value field, a hue
+ * slider, and a readout of the colour number. Dragging previews the colour and
+ * applies it when the gesture ends — a search is a database query, so one per
+ * pixel of dragging would leave the grid minutes behind the cursor.
+ */
+function ColorPicker({ color, onPick }: { color: string; onPick: (hex: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [hsv, setHsv] = useState(() => hexToHsv(color || '#ff0000'));
+  // the colour under the cursor during a drag, before it is applied
+  const [draft, setDraft] = useState<string | null>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const wrap = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const field = useRef<HTMLDivElement>(null);
+  const hue = useRef<HTMLDivElement>(null);
+  const drag = useRef<'field' | 'hue' | null>(null);
+  const dragged = useRef<string | null>(null);
+  const hsvRef = useRef(hsv);
+  hsvRef.current = hsv;
+  const onPickRef = useRef(onPick);
+  onPickRef.current = onPick;
+
+  useEffect(() => {
+    setHsv(hexToHsv(color || '#ff0000'));
+    setDraft(null);
+  }, [color]);
+
+  // The filter menu sits over the grid, so an in-flow dropdown is painted over
+  // and looks like the chevron did nothing. Float the picker above everything.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const anchor = wrap.current?.getBoundingClientRect();
+      const box = panel.current;
+      if (!anchor || !box) return;
+      const width = box.offsetWidth;
+      const height = box.offsetHeight;
+      // Sit beside the filter menu, never over the preset swatches inside it.
+      const menu = wrap.current?.closest('.popover')?.getBoundingClientRect();
+      const beside = (menu?.right ?? anchor.right) + 8;
+      const left = beside + width <= window.innerWidth - 8 ? beside : Math.max(8, (menu?.left ?? anchor.left) - width - 8);
+      const top = Math.min(Math.max(8, menu?.top ?? anchor.top), window.innerHeight - height - 8);
+      setPos({ top, left });
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      // a preset swatch picks its colour and keeps the picker open
+      if (target?.closest('.color-swatch')) return;
+      if (!wrap.current?.contains(target) && !panel.current?.contains(target)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    // capture: the preset button stops the event, so a bubble listener never sees it
+    window.addEventListener('mousedown', onDown, true);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', onDown, true);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  // A click has to count too, not only a drag: pointerdown starts the gesture
+  // and the same handler reads the position, so one click picks that colour.
+  const pickAt = (e: PointerEvent) => {
+    if (!drag.current) return;
+    const box = (drag.current === 'field' ? field.current : hue.current)?.getBoundingClientRect();
+    if (!box) return;
+    const next = { ...hsvRef.current };
+    if (drag.current === 'field') {
+      next.s = Math.min(1, Math.max(0, (e.clientX - box.left) / box.width));
+      next.v = Math.min(1, Math.max(0, 1 - (e.clientY - box.top) / box.height));
+    } else {
+      next.h = Math.min(1, Math.max(0, (e.clientX - box.left) / box.width)) * 360;
+    }
+    setHsv(next);
+    dragged.current = hsvToHex(next.h, next.s, next.v);
+    setDraft(dragged.current);
+  };
+  useEffect(() => {
+    const move = (e: PointerEvent) => pickAt(e);
+    // One search per gesture: apply the colour the drag ended on.
+    const up = () => {
+      if (!drag.current) return;
+      drag.current = null;
+      const hex = dragged.current;
+      dragged.current = null;
+      if (hex) onPickRef.current(hex);
+    };
+    const cancel = () => {
+      drag.current = null;
+      dragged.current = null;
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', cancel);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel);
+    };
+  }, []);
+
+  const shown = draft || color || '#000000';
+  return (
+    <div className="color-picker-wrap" ref={wrap}>
+      <button
+        className={cls('color-picker-btn', open && 'open')}
+        title="Pick a color"
+        aria-label="Pick a color"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span style={{ background: shown }} />
+        <ChevronDown size={13} />
+      </button>
+      {open &&
+        createPortal(
+        <div
+          className="color-dropdown"
+          data-popover-child=""
+          ref={panel}
+          style={{ top: pos.top, left: pos.left }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div
+            className="color-field"
+            ref={field}
+            style={{ background: hsvToHex(hsv.h, 1, 1) }}
+            onPointerDown={(e) => {
+              drag.current = 'field';
+              pickAt(e.nativeEvent);
+              e.currentTarget.setPointerCapture(e.pointerId);
+            }}
+          >
+            <span className="color-field-white" />
+            <span className="color-field-black" />
+            <i style={{ left: hsv.s * 100 + '%', top: (1 - hsv.v) * 100 + '%' }} />
+          </div>
+          <div
+            className="color-hue"
+            ref={hue}
+            onPointerDown={(e) => {
+              drag.current = 'hue';
+              pickAt(e.nativeEvent);
+              e.currentTarget.setPointerCapture(e.pointerId);
+            }}
+          >
+            <i style={{ left: (hsv.h / 360) * 100 + '%' }} />
+          </div>
+          <div className="color-dropdown-readout">
+            <span style={{ background: shown }} />
+            <code>{shown}</code>
+          </div>
+        </div>,
+        document.body,
+        )}
+    </div>
+  );
+}
+
+/** Colour filter: recommended swatches, a custom colour, or a typed colour number. */
+function ColorSearch({ color, onPick }: { color: string; onPick: (hex: string) => void }) {
+  const [text, setText] = useState(color);
+  const [invalid, setInvalid] = useState(false);
+  const editing = useRef(false);
+  // Text typed but not applied yet. The filter menu closes on mousedown, which
+  // removes the field before it can blur, so a code typed and then abandoned by
+  // clicking outside used to be thrown away without ever searching.
+  const pending = useRef<string | null>(null);
+  const onPickRef = useRef(onPick);
+  onPickRef.current = onPick;
+
+  useEffect(() => {
+    if (!editing.current) setText(color);
+  }, [color]);
+
+  useEffect(
+    () => () => {
+      const raw = pending.current;
+      if (raw == null) return;
+      if (!raw.trim()) {
+        onPickRef.current('');
+        return;
+      }
+      const next = parseColorInput(raw);
+      if (next) onPickRef.current(next);
+    },
+    [],
+  );
+
+  const apply = (raw: string) => {
+    pending.current = null;
+    const next = parseColorInput(raw);
+    if (!next) {
+      setInvalid(true);
+      return;
+    }
+    setInvalid(false);
+    setText(next);
+    if (next !== color) onPickRef.current(next);
+  };
+
+  // A focused field should be applied as soon as the menu goes away, whether
+  // that is a click outside, Escape, or a click on one of the preset swatches.
+  const commitTyped = () => {
+    editing.current = false;
+    if (!text.trim()) {
+      pending.current = null;
+      setInvalid(false);
+      onPickRef.current('');
+      return;
+    }
+    apply(text);
+  };
+
+  return (
+    <div className="color-search">
+      <div className="menu-label">Search by color</div>
+      <div className="color-swatches">
+        {RECOMMENDED_COLORS.map((hex) => (
+          <button
+            key={hex}
+            className={cls('color-swatch', color === hex && 'on')}
+            style={{ background: hex }}
+            title={hex}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              editing.current = false;
+              pending.current = null;
+              setInvalid(false);
+              setText(hex);
+              onPick(hex);
+            }}
+          />
+        ))}
+      </div>
+      <div className="color-custom">
+        <ColorPicker
+          color={parseColorInput(text) || color || '#ff0000'}
+          onPick={(hex) => {
+            editing.current = false;
+            pending.current = null;
+            setInvalid(false);
+            setText(hex);
+            onPick(hex);
+          }}
+        />
+        <input
+          className={cls('color-number', invalid && 'invalid')}
+          value={text}
+          spellCheck={false}
+          placeholder="Color number, e.g. #1e88e5"
+          aria-label="Color number"
+          onFocus={() => (editing.current = true)}
+          onChange={(e) => {
+            pending.current = e.target.value;
+            setText(e.target.value);
+            setInvalid(false);
+          }}
+          onBlur={commitTyped}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              commitTyped();
+            }
+          }}
+        />
+        {color && (
+          <button
+            className="icon-btn xs"
+            title="Clear colour"
+            onClick={() => {
+              editing.current = false;
+              pending.current = null;
+              setInvalid(false);
+              setText('');
+              onPick('');
+            }}
+          >
+            <X size={13} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function Toolbar() {
   const view = useStore((s) => s.view);
@@ -153,13 +521,14 @@ export function Toolbar() {
         {filters.color && (
           <button className="color-chip" onClick={() => setFilters({ color: '' })} title="Clear colour filter">
             <span style={{ background: filters.color }} />
+            <em>{filters.color}</em>
             <X size={12} />
           </button>
         )}
 
         <Popover
           align="right"
-          width={280}
+          width={312}
           trigger={(open, toggle) => (
             <button className={cls('tool-btn', (open || activeFilters > 0) && 'active')} onClick={toggle}>
               <ListFilter size={15} />
@@ -204,6 +573,8 @@ export function Toolbar() {
                   </button>
                 ))}
               </div>
+              <div className="menu-sep" />
+              <ColorSearch color={filters.color} onPick={(color) => setFilters({ color })} />
               <div className="menu-sep" />
               <div className="menu-label">Minimum rating</div>
               <div className="stars-row">
