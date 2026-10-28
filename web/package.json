@@ -6,6 +6,7 @@
     "dev:demo": "vite --mode demo",
     "build": "tsc && vite build",
     "build:demo": "tsc && vite build --mode demo",
+    "render:preview": "node preview/render.mjs",
     "typecheck": "tsc",
     "preview": "vite preview"
   },

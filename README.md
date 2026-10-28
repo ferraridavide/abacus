@@ -78,6 +78,10 @@ they stay in that browser only.
 - To run the demo locally, run `npm run dev:demo --prefix web`.
 - To build it, run `npm run build:demo --prefix web`. The static site is written to `web/dist` and can be served
   from any path.
+- The demo build adds a description and link preview images for social sites. The images are in
+  `web/public-demo/preview`. To render them again after the app or the landing page changes, run
+  `npm run render:preview --prefix web`, which needs Google Chrome. Set `DEMO_URL` to the address the demo is
+  published at, so the image links are absolute.
 - The **Deploy demo** GitHub Actions workflow publishes it to GitHub Pages on every push to `main`. To turn it on,
   open the repository's **Settings** > **Pages** and set **Source** to **GitHub Actions**.
 

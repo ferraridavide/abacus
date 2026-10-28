@@ -1,0 +1,150 @@
+<!doctype html>
+<!--
+  The demo's link preview, styled like its landing page: the name and tagline, with the app peeking in below.
+  render.mjs opens it at each image size with ?format=landscape|square|portrait and calls render() with a capture
+  of the app.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Abacus preview</title>
+    <style>
+      :root {
+        --bg: #121316;
+        --text: #ececef;
+        --text-dim: #a1a3ab;
+        --font: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+      }
+      /* sizes per format, in pixels of the finished image */
+      .landscape {
+        --hero-top: 54px;
+        --logo: 62px;
+        --title: 78px;
+        --tagline: 23px;
+        --tagline-w: 640px;
+        --gap: 14px;
+        --frame-top: 340px;
+        --frame-w: 900px;
+        --b: 8px;
+        --r: 20px;
+      }
+      .square {
+        --hero-top: 120px;
+        --logo: 100px;
+        --title: 128px;
+        --tagline: 34px;
+        --tagline-w: 860px;
+        --gap: 24px;
+        --frame-top: 580px;
+        --frame-w: 1020px;
+        --b: 10px;
+        --r: 24px;
+      }
+      .portrait {
+        --hero-top: 200px;
+        --logo: 100px;
+        --title: 128px;
+        --tagline: 34px;
+        --tagline-w: 820px;
+        --gap: 24px;
+        /* runs off the bottom edge, as on the landing page */
+        --frame-top: 720px;
+        --frame-w: 1010px;
+        --b: 10px;
+        --r: 24px;
+      }
+
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+      }
+      body {
+        position: relative;
+        color: var(--text);
+        font-family: var(--font);
+        -webkit-font-smoothing: antialiased;
+        background:
+          radial-gradient(60% 50% at 50% 0%, rgba(91, 140, 255, 0.2), transparent 70%),
+          radial-gradient(40% 40% at 88% 30%, rgba(139, 92, 255, 0.14), transparent 70%),
+          radial-gradient(40% 40% at 10% 55%, rgba(91, 140, 255, 0.08), transparent 70%),
+          var(--bg);
+      }
+
+      .hero {
+        position: absolute;
+        top: var(--hero-top);
+        left: 0;
+        right: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--gap);
+        text-align: center;
+      }
+      .logo {
+        font-size: var(--logo);
+        line-height: 1;
+        filter: drop-shadow(0 18px 40px rgba(91, 140, 255, 0.4));
+      }
+      h1 {
+        margin: 0;
+        font-size: var(--title);
+        font-weight: 700;
+        letter-spacing: -0.045em;
+        line-height: 1;
+        background: linear-gradient(180deg, #ffffff 30%, #a1a3ab);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      p {
+        margin: 0;
+        max-width: var(--tagline-w);
+        color: var(--text-dim);
+        font-size: var(--tagline);
+        line-height: 1.4;
+        text-wrap: balance;
+      }
+
+      .frame {
+        position: absolute;
+        top: var(--frame-top);
+        left: 50%;
+        width: var(--frame-w);
+        transform: translateX(-50%);
+        padding: var(--b);
+        border-radius: var(--r);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+        box-shadow:
+          0 40px 120px rgba(0, 0, 0, 0.55),
+          0 0 90px rgba(91, 140, 255, 0.18);
+      }
+      .frame img {
+        display: block;
+        width: 100%;
+        border-radius: calc(var(--r) - var(--b));
+      }
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <div class="logo">🧮</div>
+      <h1>Abacus</h1>
+      <p>A self-hosted library for your images, GIFs, videos, and saved posts.</p>
+    </header>
+    <div class="frame"><img alt="" /></div>
+    <script>
+      document.documentElement.className = new URLSearchParams(location.search).get('format') || 'landscape';
+      /** Show the app capture; resolves once it and the fonts are ready to be captured. */
+      window.render = async (src) => {
+        const img = document.querySelector('.frame img');
+        img.src = src;
+        await img.decode();
+        await document.fonts.ready;
+      };
+    </script>
+  </body>
+</html>
