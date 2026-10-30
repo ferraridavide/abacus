@@ -20,7 +20,7 @@ import {
 import { api } from '../api';
 import { useStore } from '../store';
 import type { Item, ItemEmbedding } from '../types';
-import { formatBytes, formatDate, formatDuration, FOLDER_COLORS, hostOf } from '../lib/format';
+import { formatBytes, formatDate, formatDuration, FOLDER_COLORS, hostOf, safeHref } from '../lib/format';
 import { Avatar, BookmarkFace } from './Card';
 import { TagInput } from './TagInput';
 import { cls, XLogo } from './ui';
@@ -157,7 +157,7 @@ function SingleInspector({ item }: { item: Item }) {
           </div>
           {item.text && item.type !== 'bookmark' && <p className="tweet-text">{item.text}</p>}
           {item.url && (
-            <a className="tweet-link" href={item.url} target="_blank" rel="noreferrer">
+            <a className="tweet-link" href={safeHref(item.url) ?? undefined} target="_blank" rel="noreferrer">
               View post <ExternalLink size={12} />
             </a>
           )}
@@ -246,7 +246,7 @@ function SingleInspector({ item }: { item: Item }) {
             }}
           />
           {item.url && (
-            <a className="icon-btn xs" href={item.url} target="_blank" rel="noreferrer" title={`Open ${hostOf(item.url)}`}>
+            <a className="icon-btn xs" href={safeHref(item.url) ?? undefined} target="_blank" rel="noreferrer" title={`Open ${hostOf(item.url)}`}>
               <ExternalLink size={13} />
             </a>
           )}
@@ -288,7 +288,7 @@ function SingleInspector({ item }: { item: Item }) {
             </>
           )}
           <dt>Source</dt>
-          <dd>{{ x: 'X (Twitter)', social: 'Social', web: 'Web', upload: 'Upload', arena: 'Are.na' }[item.source]}</dd>
+          <dd>{{ x: 'X (Twitter)', social: 'Social', web: 'Web', upload: 'Upload', arena: 'Are.na', api: 'API' }[item.source]}</dd>
         </dl>
       </Section>
 

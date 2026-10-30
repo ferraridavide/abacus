@@ -4,7 +4,8 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning src/index.js",
-    "dev": "node --disable-warning=ExperimentalWarning --watch src/index.js"
+    "dev": "node --disable-warning=ExperimentalWarning --watch src/index.js",
+    "test": "node --test test/*.test.js"
   },
   "type": "module",
   "dependencies": {

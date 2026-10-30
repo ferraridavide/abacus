@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { Check, FileIcon, Globe, Image as ImageIcon, Link2, Play, Star, Type } from 'lucide-react';
+import { Check, FileIcon, Globe, Image as ImageIcon, Link2, Play, Star, StickyNote, Type } from 'lucide-react';
 import type { Item, SearchScore } from '../types';
 import type { Box } from '../lib/layout';
 import { formatDate, formatDuration, hostOf, itemMeta } from '../lib/format';
@@ -170,6 +170,20 @@ export function BookmarkFace({ item, large }: { item: Item; large?: boolean }) {
         </div>
         <div className="bm-text">{item.text || item.name}</div>
         <div className="bm-foot">{formatDate(item.postedAt, false)}</div>
+      </div>
+    );
+  }
+  if (!item.url) {
+    // A note added through the API: no site or link to show.
+    return (
+      <div className={cls('bookmark-face web', large && 'large')}>
+        <div className="bm-site">
+          <StickyNote size={13} /> Note
+        </div>
+        <div className="bm-title">{item.name}</div>
+        {(item.text || item.notes) && item.text !== item.name && (
+          <div className="bm-text dim">{item.text || item.notes}</div>
+        )}
       </div>
     );
   }

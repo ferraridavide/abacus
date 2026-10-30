@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Download, ExternalLink, Info, X } from 'lucide-react';
 import { useStore } from '../store';
 import type { Item } from '../types';
-import { itemMeta } from '../lib/format';
+import { itemMeta, safeHref } from '../lib/format';
 import { BookmarkFace } from './Card';
 import { useCompact } from './ui';
 
@@ -74,7 +74,7 @@ export function Viewer() {
             </button>
           )}
           {item.url && (
-            <a className="icon-btn" href={item.url} target="_blank" rel="noreferrer" title="Open source">
+            <a className="icon-btn" href={safeHref(item.url) ?? undefined} target="_blank" rel="noreferrer" title="Open source">
               <ExternalLink size={17} />
             </a>
           )}
@@ -131,7 +131,7 @@ function ViewerMedia({ item }: { item: Item }) {
       <div className="viewer-bookmark">
         <BookmarkFace item={item} large />
         {item.url && (
-          <a className="btn primary" href={item.url} target="_blank" rel="noreferrer">
+          <a className="btn primary" href={safeHref(item.url) ?? undefined} target="_blank" rel="noreferrer">
             Open {item.source === 'x' ? 'on X' : 'link'} <ExternalLink size={14} />
           </a>
         )}

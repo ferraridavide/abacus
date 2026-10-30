@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { api } from '../api';
 import { useStore, currentFolderId } from '../store';
-import { FOLDER_COLORS } from '../lib/format';
+import { FOLDER_COLORS, safeHref } from '../lib/format';
 import { cls, Modal, useClampedPosition, XLogo } from './ui';
 import { flattenFolders } from './ImportDialog';
 
@@ -102,11 +102,11 @@ function ItemMenu() {
   return (
     <>
       {n === 1 && <MI icon={<Eye size={14} />} label="Preview" hint="Space" onClick={() => s.set({ viewerId: first.id })} />}
-      {n === 1 && first.url && (
+      {n === 1 && safeHref(first.url) && (
         <MI
           icon={first.source === 'x' ? <XLogo size={12} /> : <ExternalLink size={14} />}
           label={first.source === 'x' ? 'Open post on X' : 'Open source page'}
-          onClick={() => window.open(first.url!, '_blank', 'noopener')}
+          onClick={() => window.open(safeHref(first.url)!, '_blank', 'noopener')}
         />
       )}
       {n === 1 && first.fileUrl && (

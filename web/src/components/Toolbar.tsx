@@ -566,6 +566,7 @@ export function Toolbar() {
                     ['web', 'Web'],
                     ['arena', 'Are.na'],
                     ['upload', 'Upload'],
+                    ['api', 'API'],
                   ] as const
                 ).map(([k, label]) => (
                   <button key={k} className={cls(filters.source === k && 'on')} onClick={() => setFilters({ source: k })}>

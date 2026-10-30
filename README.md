@@ -19,6 +19,8 @@ It runs as a web app with a Node.js backend and a SQLite database, and ships as 
 - Optional import providers, such as [cobalt](https://github.com/imputnet/cobalt), for YouTube, TikTok,
   Instagram, Reddit, and other sites.
 - A bookmarklet that saves the current page from any browser.
+- A single `POST /api/add` endpoint for adding links, notes, and files from anything that can make an
+  HTTP request, with a bundled Chrome extension.
 - A full-screen viewer with zoom and keyboard navigation.
 
 ## Requirements
@@ -90,6 +92,14 @@ work as usual. Importing links, Are.na exports, the bookmarklet, import provider
 server; in the demo, they show a message instead. A **Demo** badge stays in the bottom-right corner. Click it to
 delete your changes and start again from the sample library.
 
+## Tests
+
+Run the tests (the API and the Chrome extension's helpers, against a throwaway server):
+
+```bash
+npm test
+```
+
 ## Configuration
 
 Set these environment variables in `docker-compose.yml` or in your shell.
@@ -100,6 +110,7 @@ Set these environment variables in `docker-compose.yml` or in your shell.
 | `DATA_DIR`           | `./data` | Directory for the database, files, and thumbnails.       |
 | `AUTH_PASSWORD`      | None     | If set, the server requires HTTP basic authentication.   |
 | `AUTH_USER`          | `abacus` | User name for basic authentication.                      |
+| `API_TOKEN`          | None     | Token that can only add content, for scripts and extensions. |
 | `IMPORT_CONCURRENCY` | `3`      | Number of links fetched in parallel during an import.    |
 | `MAX_DOWNLOAD_MB`    | `1024`   | Maximum size of a single downloaded or uploaded file.    |
 
@@ -174,6 +185,27 @@ On the **Bookmarklet** tab of the import dialog, drag the **Save to Abacus** but
 Click the bookmark on any page to save that page or post to your library.
 
 Importing the same item twice doesn't create a duplicate.
+
+## Add API and Chrome extension
+
+Every way of adding content (the web app, the bookmarklet, and the Chrome extension) goes
+through one endpoint:
+
+```http
+POST /api/add
+Authorization: Bearer <API_TOKEN>
+Content-Type: application/json
+
+{ "url": "https://x.com/user/status/123", "folder": "Design / Logos", "tags": ["later"], "notes": "for the deck" }
+```
+
+It takes a `url`, several `urls`, `text` (with links, or as a note), or a file, including Are.na exports. Set
+`API_TOKEN` on the server for scripts and extensions. The token can only add content: it can't read, change, or
+delete your library, so it's safer to keep in a browser or a script than the login. See
+**[docs/API.md](docs/API.md)** for the full reference.
+
+**Chrome extension**: load `extensions/chrome` with **Load unpacked** in `chrome://extensions`, then enter your
+server and token. See [extensions/chrome/README.md](extensions/chrome/README.md).
 
 ## Data storage
 

@@ -43,6 +43,16 @@ export function itemMeta(item: Item) {
   return parts.join(' · ');
 }
 
+/** The URL when it's an http(s) link that is safe to open, else null (older items may hold anything). */
+export function safeHref(url: string | null | undefined) {
+  if (!url) return null;
+  try {
+    return ['http:', 'https:'].includes(new URL(url).protocol) ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 export function hostOf(url: string | null) {
   if (!url) return '';
   try {

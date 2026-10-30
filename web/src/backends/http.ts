@@ -44,7 +44,12 @@ export const httpBackend: Backend = {
   updateFolder: (id: string, patch: Partial<Pick<Folder, 'name' | 'color' | 'parentId' | 'sort'>>) =>
     request<Folder>('PATCH', `/api/folders/${id}`, patch),
   deleteFolder: (id: string) => request<{ ok: boolean }>('DELETE', `/api/folders/${id}`),
-  startImport: (body: { text: string; folderId?: string; tags?: string[] }) => request<Job>('POST', '/api/import', body),
+  startImport: async (body: { text: string; folderId?: string; tags?: string[] }) => {
+    // linksOnly: pasted or dropped text without http(s) links is refused rather than saved as a note.
+    const data = await request<{ job: Job | null }>('POST', '/api/add', { ...body, async: true, linksOnly: true });
+    if (!data.job) throw new Error('No links found');
+    return data.job;
+  },
   importSources: () => request<{ providers: ActiveProvider[] }>('GET', '/api/import/sources'),
   providerSettings: () => request<ProviderSettings[]>('GET', '/api/settings/providers'),
   updateProvider: (id: string, body: { enabled?: boolean; values?: Record<string, string> }) =>
@@ -64,18 +69,19 @@ export const httpBackend: Backend = {
   /** Returns null when the zip isn't an Are.na export. */
   importArena: async (file: File, folderId?: string): Promise<Job | null> => {
     const form = new FormData();
+    form.append('arena', 'only');
     if (folderId) form.append('folderId', folderId);
     form.append('file', file, file.name);
-    const res = await fetch('/api/import/arena', { method: 'POST', body: form });
+    const res = await fetch('/api/add', { method: 'POST', body: form });
     if (res.status === 422) return null;
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error || `Import failed (${res.status})`);
-    return data;
+    return data.job;
   },
   upload: async (form: FormData): Promise<Item> => {
-    const res = await fetch('/api/upload', { method: 'POST', body: form });
+    const res = await fetch('/api/add', { method: 'POST', body: form });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error || `Upload failed (${res.status})`);
-    return data;
+    return data.items?.[0];
   },
 };

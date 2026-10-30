@@ -11,6 +11,8 @@ services:
       # Uncomment to require a login (HTTP basic auth):
       # AUTH_USER: abacus
       # AUTH_PASSWORD: change-me
+      # Bearer token for the add API (Chrome extension, scripts):
+      # API_TOKEN: change-me
       IMPORT_CONCURRENCY: 3
       MAX_DOWNLOAD_MB: 1024
     restart: unless-stopped

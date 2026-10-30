@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Abacus — Settings</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main>
+      <header class="head">
+        <img src="icons/icon128.png" alt="" width="44" height="44" />
+        <div>
+          <h1>Abacus</h1>
+          <p class="lead">Save anything to your self-hosted library.</p>
+        </div>
+      </header>
+
+      <form id="form">
+        <label>
+          <span>Server URL</span>
+          <input id="serverUrl" type="text" inputmode="url" placeholder="http://my-server:8090" required />
+          <small>The address you open Abacus at. Chrome asks once for access to it.</small>
+        </label>
+
+        <fieldset>
+          <legend>Authentication</legend>
+          <label>
+            <span>API token <em>(recommended)</em></span>
+            <input id="token" type="password" autocomplete="off" placeholder="Bearer token" />
+            <small>
+              The <code>API_TOKEN</code> value from the server's environment. It can only add content, so it's
+              safer to keep here than the login.
+            </small>
+          </label>
+          <p class="or">— or use the HTTP basic login —</p>
+          <div class="row">
+            <label>
+              <span>Username</span>
+              <input id="username" type="text" autocomplete="username" placeholder="abacus" />
+            </label>
+            <label>
+              <span>Password</span>
+              <input id="password" type="password" autocomplete="current-password" placeholder="••••••" />
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="row">
+          <label>
+            <span>Default folder</span>
+            <input id="folder" type="text" placeholder="Inbox" />
+            <small>A path like <code>Design / Logos</code>; missing folders are created.</small>
+          </label>
+          <label>
+            <span>Default tags</span>
+            <input id="tags" type="text" placeholder="inspiration, design" />
+            <small>Comma separated.</small>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="primary">Save and test</button>
+        </div>
+        <p id="status" class="status" role="status"></p>
+      </form>
+
+      <footer>
+        The extension talks to <code>POST /api/add</code>, the same endpoint used by the web app, the
+        and the bookmarklet. See <code>docs/API.md</code> in the repository.
+      </footer>
+    </main>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

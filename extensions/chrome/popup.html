@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Abacus</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="head">
+      <img src="icons/icon48.png" alt="" width="30" height="30" />
+      <div class="titles">
+        <h1>Abacus</h1>
+        <p id="status">Checking connection…</p>
+      </div>
+      <button id="options" class="icon" type="button" title="Extension settings">⚙</button>
+    </header>
+
+    <form id="form">
+      <label>
+        <span>Page URL</span>
+        <input id="url" type="url" placeholder="https://…" />
+      </label>
+      <label>
+        <span>Name</span>
+        <input id="name" type="text" placeholder="Title from the page" />
+      </label>
+      <label>
+        <span>Folder</span>
+        <input id="folder" type="text" list="folders" placeholder="Library (no folder) · e.g. Design / Logos" />
+        <datalist id="folders"></datalist>
+      </label>
+      <label>
+        <span>Tags</span>
+        <input id="tags" type="text" placeholder="inspiration, design" />
+      </label>
+      <label>
+        <span>Note</span>
+        <textarea id="notes" rows="2" placeholder="Optional note"></textarea>
+      </label>
+      <button id="save" class="primary" type="submit">Save to Abacus</button>
+    </form>
+
+    <p id="result" class="result" role="status" hidden></p>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

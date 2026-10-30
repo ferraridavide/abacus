@@ -1,15 +1,33 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { pipeline } from 'node:stream/promises';
-import { paths } from './config.js';
-import { newId, VIDEO_EXTS } from './util.js';
 import * as lib from './library.js';
-import { startImport, startArenaImport, getJob } from './jobs.js';
-import { readArenaZip } from './importers/arena.js';
+import { addContent, addUpload } from './add.js';
+import { getJob } from './jobs.js';
 import { activeProviders, listProviderSettings, testProvider, updateProvider } from './providers/index.js';
 import * as embeddings from './embeddings.js';
 
 const notFound = (reply) => reply.code(404).send({ error: 'Not found' });
+
+const notAnItem = () => {
+  throw Object.assign(new Error('Are.na exports go to /api/add or /api/import/arena'), { statusCode: 400 });
+};
+
+/** The /api/add response: counts, the items (when finished), the job (for links), and any warnings. */
+function addResponse({ job, items, warnings = [] }) {
+  const created = job ? job.imported : items.length;
+  const skipped = job ? job.skipped : 0;
+  const failed = job ? job.failed : 0;
+  const errors = job ? job.entries.filter((e) => e.error).map((e) => `${e.label}: ${e.error}`) : [];
+  return {
+    ok: failed === 0,
+    pending: !!(job && job.status !== 'done'),
+    created,
+    skipped,
+    failed,
+    error: errors.length ? errors.join('; ') : undefined,
+    warnings,
+    items,
+    job,
+  };
+}
 
 export async function routes(app) {
   app.get('/api/health', async () => ({ ok: true }));
@@ -62,93 +80,41 @@ export async function routes(app) {
   app.patch('/api/folders/:id', async (req) => lib.updateFolder(req.params.id, req.body || {}));
   app.delete('/api/folders/:id', async (req) => lib.deleteFolder(req.params.id));
 
-  // ---------- upload (one file per request; optional client-generated poster) ----------
-  app.post('/api/upload', async (req, reply) => {
-    const fields = {};
-    let tmp = null;
-    let original = null;
-    let mime = null;
-    let thumbBuffer = null;
-    try {
-      for await (const part of req.parts()) {
-        if (part.type === 'file') {
-          if (part.fieldname === 'thumb') {
-            thumbBuffer = await part.toBuffer();
-          } else {
-            tmp = path.join(paths.files, `.tmp-${newId()}`);
-            original = part.filename;
-            mime = part.mimetype;
-            await pipeline(part.file, fs.createWriteStream(tmp));
-            if (part.file.truncated) throw Object.assign(new Error('File too large'), { statusCode: 413 });
-          }
-        } else {
-          fields[part.fieldname] = part.value;
-        }
-      }
-      if (!tmp) return reply.code(400).send({ error: 'No file' });
-
-      const ext = (path.extname(original || '').slice(1) || '').toLowerCase();
-      const base = path.basename(original || 'upload', path.extname(original || ''));
-      const isVideo = VIDEO_EXTS.has(ext) || (mime || '').startsWith('video/');
-      const common = {
-        name: fields.name || base,
-        ext,
-        mime,
-        source: 'upload',
-        folderIds: fields.folderId ? [fields.folderId] : [],
-        tags: fields.tags ? JSON.parse(fields.tags) : [],
-        thumbBuffer,
-        width: Number(fields.width) || undefined,
-        height: Number(fields.height) || undefined,
-        duration: Number(fields.duration) || undefined,
-      };
-      let item;
-      if (isVideo) {
-        item = await lib.addItem({ ...common, type: 'video', tempFile: tmp });
-      } else {
-        const buffer = fs.readFileSync(tmp);
-        item = await lib.addItem({ ...common, buffer });
-      }
-      return item;
-    } finally {
-      if (tmp) fs.rmSync(tmp, { force: true });
+  // ---------- add: the one content-ingestion API ----------
+  // JSON: links, several URLs, or a note. Multipart: one file plus fields (Are.na exports become folders).
+  // The web app, the bookmarklet, and the Chrome extension all add content through it.
+  const handleAdd = async (req, reply) => {
+    if (req.isMultipart()) {
+      const { item, job, warnings } = await addUpload(req);
+      if (job) return reply.code(202).send(addResponse({ job, items: [], warnings }));
+      return reply.code(201).send(addResponse({ job: null, items: [item], warnings }));
     }
-  });
+    const input = { ...(req.body || {}) };
+    const queryAsync = req.query?.async;
+    if (queryAsync && queryAsync !== 'false' && queryAsync !== '0') input.async = true;
+    const result = await addContent(input);
+    if (!result.job && !result.items.length) return reply.code(400).send({ error: 'No links found' });
+    const body = addResponse(result);
+    if (body.pending) return reply.code(202).send(body);
+    // Nothing saved and nothing already there: the import failed, so answer with an error clients can't miss.
+    if (body.failed && !body.created && !body.skipped) return reply.code(502).send(body);
+    return reply.code(body.created ? 201 : 200).send(body);
+  };
+  app.post('/api/add', handleAdd);
+  app.post('/api/v1/add', handleAdd);
 
-  // ---------- import (X links, import providers, image URLs, web pages) ----------
+  // ---------- legacy wrappers over /api/add, kept for older clients ----------
+  app.post('/api/upload', async (req) => (await addUpload(req)).item ?? notAnItem());
+
   app.post('/api/import', async (req, reply) => {
-    const { text, urls, folderId, tags } = req.body || {};
-    const job = startImport({ text: [text, ...(urls || [])].filter(Boolean).join('\n'), folderId, tags });
-    if (!job.total) return reply.code(400).send({ error: 'No links found', job });
-    return job;
+    const { text, urls, folderId, folder, tags } = req.body || {};
+    const result = await addContent({ text, urls, folderId, folder, tags, async: true, linksOnly: true });
+    if (!result.job) return reply.code(400).send({ error: 'No links found' });
+    return result.job;
   });
 
-  // Are.na channel export (.zip). Responds 422 if the zip isn't one, so the client can store it as a file instead.
-  app.post('/api/import/arena', async (req, reply) => {
-    let tmp = null;
-    let parentId = null;
-    for await (const part of req.parts()) {
-      if (part.type === 'file') {
-        tmp = path.join(paths.files, `.tmp-${newId()}.zip`);
-        await pipeline(part.file, fs.createWriteStream(tmp));
-      } else if (part.fieldname === 'folderId') {
-        parentId = part.value || null;
-      }
-    }
-    if (!tmp) return reply.code(400).send({ error: 'No file' });
-    let channels;
-    try {
-      channels = readArenaZip(tmp);
-    } catch {
-      channels = null;
-    }
-    if (!channels) {
-      fs.rmSync(tmp, { force: true });
-      return reply.code(422).send({ error: 'Not an Are.na export' });
-    }
-    // blocks are read lazily from the zip, so keep it until the job finishes
-    return startArenaImport(channels, { parentId, onDone: () => fs.rmSync(tmp, { force: true }) });
-  });
+  // Responds 422 if the zip isn't an Are.na export, so the client can store it as a file instead.
+  app.post('/api/import/arena', async (req) => (await addUpload(req, { arena: 'only' })).job);
 
   // Enabled import providers and the sites they add to link imports.
   app.get('/api/import/sources', async () => ({ providers: await activeProviders() }));
@@ -193,9 +159,11 @@ const QUICK_ADD_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>
   $('sub').textContent = url;
   const done = (m, ok) => { $('spin').remove(); $('msg').textContent = m; if (ok) setTimeout(() => window.close(), 1400); };
   try {
-    const r = await fetch('/api/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: url, folderId: p.get('folderId') || undefined }) });
-    let job = await r.json();
-    if (!r.ok) return done(job.error || 'Nothing to import');
+    const r = await fetch('/api/add', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url, folderId: p.get('folderId') || undefined, async: true, linksOnly: true }) });
+    const data = await r.json();
+    if (!r.ok) return done(data.error || 'Nothing to import');
+    let job = data.job;
+    if (!job) return done(data.items?.length ? '✓ Saved' : 'Nothing to import', true);
     while (job.status !== 'done') { await new Promise((res) => setTimeout(res, 600)); job = await (await fetch('/api/jobs/' + job.id)).json(); }
     if (job.failed) return done('Failed: ' + (job.entries.find((e) => e.error)?.error || 'unknown error'));
     done(job.imported ? '✓ Saved ' + job.imported + ' item' + (job.imported > 1 ? 's' : '') : 'Already in your library', true);

@@ -12,6 +12,8 @@ export const config = {
   // Optional HTTP basic auth: AUTH_USER / AUTH_PASSWORD
   authUser: process.env.AUTH_USER || 'abacus',
   authPassword: process.env.AUTH_PASSWORD || '',
+  // Optional bearer token for scripts and extensions: API_TOKEN (alias ABACUS_API_TOKEN)
+  apiToken: process.env.API_TOKEN || process.env.ABACUS_API_TOKEN || '',
   maxDownloadBytes: Number(process.env.MAX_DOWNLOAD_MB || 1024) * 1024 * 1024,
   importConcurrency: Number(process.env.IMPORT_CONCURRENCY || 3),
 };
