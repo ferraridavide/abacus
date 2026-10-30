@@ -8,6 +8,20 @@ wrappers over the same code.
 
 The examples use `http://my-server:8090`; replace it with the address you open Abacus at.
 
+## OpenAPI and Swagger UI
+
+Open **Settings → Integration** for links to **Swagger UI** (`/api/docs/`) and the machine-readable
+**OpenAPI 3.0 specification** (`/api/openapi.json`). These document all API routes, including library management,
+settings, JSON and multipart uploads, responses, and authentication. Swagger UI also exposes the specification
+at `/api/docs/json` and `/api/docs/yaml`.
+
+The documentation and its bundled assets use the same optional web login as the app. When `AUTH_PASSWORD` is
+set, open it with your web login. API keys retain their add-only permissions and cannot retrieve documentation.
+In Swagger UI, click **Authorize** and enter a key under **bearerAuth** (the token alone) or **apiKey**
+(`x-api-key`), or use **basicAuth** for full access. Authorize one credential at a time to avoid sending
+conflicting headers. **Try it out** makes real requests to your library; credentials are not persisted across
+page reloads. The API server and Vite's development proxy both serve these paths.
+
 ## Authentication
 
 `/api/add` accepts either credential:

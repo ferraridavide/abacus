@@ -204,6 +204,12 @@ it is only shown once. The token can only add content: it can't read, change, or
 delete your library, so it's safer to keep in a browser or a script than the login. See
 **[docs/API.md](docs/API.md)** for the full reference.
 
+**Settings → Integration** links to interactive **Swagger UI** at `/api/docs/` and the **OpenAPI 3.0
+specification** at `/api/openapi.json`. The reference covers the full API, including file uploads, import jobs,
+library management, and settings. Use **Authorize** in Swagger UI to enter an API key for the integration
+endpoints or the web login for full access. Documentation uses the same optional web login as the app and
+ships with its own assets, so no external service is needed.
+
 **Chrome extension**: load `extensions/chrome` with **Load unpacked** in `chrome://extensions`, then enter your
 server and token. See [extensions/chrome/README.md](extensions/chrome/README.md).
 

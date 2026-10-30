@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Copy, KeyRound, Loader2 } from 'lucide-react';
+import { BookOpen, Copy, FileJson, KeyRound, Loader2 } from 'lucide-react';
 import { api } from '../api';
 import { formatDate } from '../lib/format';
 import { useStore } from '../store';
@@ -63,6 +63,21 @@ export function IntegrationSettings() {
 
   return (
     <div className="integration-settings">
+      <div>
+        <div className="setting-label">API documentation</div>
+        <div className="setting-hint">
+          Explore endpoints and try requests in Swagger UI, or use the OpenAPI specification to build an integration.
+          {' '}Authorize with an API key for adding content, or your web login for full access.
+        </div>
+        {import.meta.env.MODE === 'demo' ? (
+          <div className="setting-hint">Swagger UI and the OpenAPI specification are available on your self-hosted Abacus server.</div>
+        ) : (
+          <div className="api-doc-links">
+            <a className="btn" href="/api/docs/" target="_blank" rel="noopener noreferrer"><BookOpen size={14} />Swagger UI</a>
+            <a className="btn" href="/api/openapi.json" target="_blank" rel="noopener noreferrer"><FileJson size={14} />OpenAPI specification</a>
+          </div>
+        )}
+      </div>
       <div>
         <div className="setting-label">API keys</div>
         <div className="setting-hint">

@@ -12,6 +12,8 @@
     "@fastify/compress": "^8.3.1",
     "@fastify/multipart": "^9.4.0",
     "@fastify/static": "^8.3.0",
+    "@fastify/swagger": "^9.9.2",
+    "@fastify/swagger-ui": "^5.2.6",
     "adm-zip": "^0.5.18",
     "fastify": "^5.12.5",
     "sharp": "^0.34.5"
@@ -19,5 +21,9 @@
   "private": true,
   "engines": {
     "node": ">=22.13"
+  },
+  "devDependencies": {
+    "@apidevtools/swagger-parser": "^13.1.0",
+    "ajv": "^8.20.0"
   }
 }

@@ -6,6 +6,7 @@ import fastifyMultipart from '@fastify/multipart';
 import fastifyCompress from '@fastify/compress';
 import { config, paths } from './config.js';
 import { routes } from './routes.js';
+import { apiDocs } from './api-docs.js';
 import { kickEmbeddings } from './embeddings.js';
 import { backfillColorHistograms } from './library.js';
 import { findApiKey, migrateEnvironmentApiToken, recordApiKeyUse } from './api-keys.js';
@@ -103,6 +104,7 @@ app.setErrorHandler((err, req, reply) => {
   reply.code(status).send({ error: err.message });
 });
 
+await app.register(apiDocs);
 await app.register(routes);
 
 const hasWeb = fs.existsSync(config.webDist);

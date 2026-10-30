@@ -13,7 +13,7 @@ const SECTIONS: { key: Section; label: string; desc: string; icon: ReactNode }[]
   { key: 'playback', label: 'Playback', desc: 'Autoplay of videos and GIFs', icon: <Play size={15} /> },
   { key: 'sources', label: 'Import sources', desc: 'Providers that download media', icon: <CloudDownload size={15} /> },
   { key: 'search', label: 'Semantic search', desc: 'Find anything by what it is about', icon: <Sparkles size={15} /> },
-  { key: 'integration', label: 'Integration', desc: 'API keys for extensions and scripts', icon: <KeyRound size={15} /> },
+  { key: 'integration', label: 'Integration', desc: 'API keys and documentation', icon: <KeyRound size={15} /> },
 ];
 
 export function SettingsDialog() {

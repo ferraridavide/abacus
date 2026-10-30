@@ -2647,6 +2647,14 @@ a {
   flex-direction: column;
   gap: 18px;
 }
+.api-doc-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.api-doc-links .btn {
+  text-decoration: none;
+}
 .api-key-form .text-input {
   min-width: 0;
   flex: 1;
