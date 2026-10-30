@@ -39,7 +39,6 @@ async function checkConnection(config) {
 async function save() {
   const config = readForm();
   if (!config.serverUrl) return setStatus('Enter your Abacus server, for example http://my-server:8090', 'error');
-  if (!config.token && !config.username) return setStatus('Add the API token (or the login).', 'error');
   if (!(await allowServer(config.serverUrl))) {
     return setStatus('Chrome needs access to your Abacus server to save to it. Click again and choose Allow.', 'error');
   }
@@ -61,5 +60,5 @@ $('form').addEventListener('submit', (event) => {
 (async () => {
   const config = await getConfig();
   for (const field of FIELDS) $(field).value = config[field] || '';
-  if (!config.serverUrl) setStatus('Enter your Abacus server and API token to get started.');
+  if (!config.serverUrl) setStatus('Enter your Abacus server to get started.');
 })();

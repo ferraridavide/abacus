@@ -16,8 +16,9 @@ The options page opens on install.
 
 - **Server URL**: the address you open Abacus at, like `http://my-server:8090`. When you save, Chrome asks for
   access to that server; choose **Allow**. The extension has no access to any other site.
-- **API token**: the server's `API_TOKEN`. It can only add content, so it's safer to keep in a browser than the
-  login. You can use the login (username and password) instead.
+- **API token**: the server's `API_TOKEN`; leave it empty if the server has no login (for example on a private
+  network). It can only add content, so it's safer to keep in a browser than the login. You can use the login
+  (username and password) instead.
 - **Default folder**: optional. A path like `Design / Logos`; missing folders are created.
 - **Default tags**: optional, comma separated.
 

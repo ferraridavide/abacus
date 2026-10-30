@@ -93,3 +93,26 @@ describe('errors', () => {
     assert.deepEqual(data, { error: 'Cannot move a folder into itself' });
   });
 });
+
+describe('a server with no login and no token (a private network)', () => {
+  let open;
+  before(async () => {
+    open = await startAbacus({ AUTH_PASSWORD: '', API_TOKEN: '' });
+  });
+  after(async () => {
+    await open?.stop();
+  });
+
+  test('everything works without credentials', async () => {
+    const add = await open.call('POST', '/api/add', { name: 'Open note', text: 'no auth' }, { as: 'none' });
+    assert.equal(add.status, 201, JSON.stringify(add.data));
+    assert.equal((await open.call('GET', '/api/items', undefined, { as: 'none' })).status, 200);
+  });
+
+  test('the extension helpers work without a token', async () => {
+    globalThis.chrome = { storage: { local: { get: async () => ({}), set: async () => {} } } };
+    const lib = await import('../../extensions/chrome/lib.js');
+    const data = await lib.addToAbacus({ name: 'From the extension', text: 'x' }, { config: { serverUrl: open.baseUrl } });
+    assert.equal(lib.summarize(data), '1 saved');
+  });
+});

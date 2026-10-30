@@ -26,11 +26,12 @@
         <fieldset>
           <legend>Authentication</legend>
           <label>
-            <span>API token <em>(recommended)</em></span>
+            <span>API token <em>(optional)</em></span>
             <input id="token" type="password" autocomplete="off" placeholder="Bearer token" />
             <small>
-              The <code>API_TOKEN</code> value from the server's environment. It can only add content, so it's
-              safer to keep here than the login.
+              The <code>API_TOKEN</code> value from the server's environment. Leave it empty if the server has no
+              login (for example on a private network). It can only add content, so it's safer to keep here than
+              the login.
             </small>
           </label>
           <p class="or">— or use the HTTP basic login —</p>
