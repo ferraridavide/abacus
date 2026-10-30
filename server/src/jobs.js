@@ -116,7 +116,7 @@ export function startTargets(targets, { folderIds = [], tags = [], onDone } = {}
 }
 
 /** Import an Are.na export; each channel becomes a folder (under `parentId` if given). */
-export function startArenaImport(channels, { parentId = null, onDone } = {}) {
+export function startArenaImport(channels, { parentId = null, tags = [], notes = null, onDone } = {}) {
   const targets = [];
   for (const ch of channels) {
     const folder = ensureFolder(ch.name, parentId);
@@ -124,7 +124,7 @@ export function startArenaImport(channels, { parentId = null, onDone } = {}) {
       targets.push({ kind: 'arena', block, folderId: folder.id, label: block.title || block.filename || `Block ${block.id}` });
     }
   }
-  return createJob(targets, (t) => importBlock(t.block, { folderIds: [t.folderId] }), { onDone }).job;
+  return createJob(targets, (t) => importBlock(t.block, { folderIds: [t.folderId], tags, notes }), { onDone }).job;
 }
 
 export const getJob = (id) => jobs.get(id) || null;

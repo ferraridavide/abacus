@@ -8,8 +8,12 @@ import { config, paths } from './config.js';
 import { routes } from './routes.js';
 import { kickEmbeddings } from './embeddings.js';
 import { backfillColorHistograms } from './library.js';
+import { findApiKey, migrateEnvironmentApiToken, recordApiKeyUse } from './api-keys.js';
+
+migrateEnvironmentApiToken();
 
 const app = Fastify({ logger: { level: process.env.LOG_LEVEL || 'info' }, bodyLimit: 10 * 1024 * 1024 });
+app.decorateRequest('apiKeyAuthenticated', false);
 
 const basicHeader = config.authPassword
   ? 'Basic ' + Buffer.from(`${config.authUser}:${config.authPassword}`).toString('base64')
@@ -22,20 +26,13 @@ function safeEqual(a, b) {
 }
 
 // The API token is for clients that add content (extension, scripts). It can add items, follow the
-// import job, and list folders for a folder picker; everything else (deleting, settings, files) needs the login.
-const TOKEN_ROUTES = new Set(['POST /api/add', 'POST /api/v1/add', 'GET /api/jobs/:id', 'GET /api/bootstrap']);
+// import job, and suggest folders/tags; everything else (deleting, settings, files) needs the login.
+const TOKEN_ROUTES = new Set(['POST /api/add', 'POST /api/v1/add', 'GET /api/jobs/:id', 'GET /api/bootstrap', 'GET /api/autocomplete']);
 
-const hasToken = (req) => {
+function requestApiKey(req) {
   const auth = req.headers.authorization || '';
-  if (auth.startsWith('Bearer ') && safeEqual(auth.slice(7).trim(), config.apiToken)) return true;
-  return safeEqual(req.headers['x-api-key'], config.apiToken);
-};
-
-/** 'basic' for the browser login, 'token' for a valid API token, else null. */
-function authKind(req) {
-  if (basicHeader && safeEqual(req.headers.authorization, basicHeader)) return 'basic';
-  if (config.apiToken && hasToken(req)) return 'token';
-  return null;
+  if (auth.startsWith('Bearer ')) return auth.slice(7).trim();
+  return req.headers['x-api-key'];
 }
 
 // Browser extensions call the API from a chrome-extension:// (or moz-extension://) origin.
@@ -55,23 +52,29 @@ app.addHook('onRequest', async (req, reply) => {
   if (req.method === 'OPTIONS') return reply.code(204).send();
 });
 
-// Optional auth for self-hosting: HTTP basic and/or an API token.
-if (basicHeader || config.apiToken) {
-  app.addHook('onRequest', async (req, reply) => {
-    if (req.url === '/api/health') return;
-    const kind = authKind(req);
-    if (kind === 'basic') return;
-    if (kind === 'token') {
-      if (TOKEN_ROUTES.has(`${req.method} ${req.routeOptions?.url}`)) return;
-      return reply.code(403).send({ error: 'The API token can only add content; sign in for this' });
+// Keep the web login optional. Requests presenting a key always get its restricted permissions,
+// even on an installation without a login. Keys are read from the DB so creation/revocation is immediate.
+app.addHook('onRequest', async (req, reply) => {
+  if (req.url === '/api/health') return;
+  if (basicHeader && safeEqual(req.headers.authorization, basicHeader)) return;
+  const token = requestApiKey(req);
+  if (token !== undefined) {
+    const id = findApiKey(token);
+    if (id) {
+      if (!TOKEN_ROUTES.has(`${req.method} ${req.routeOptions?.url}`)) {
+        return reply.code(403).send({ error: 'The API token can only add content; sign in for this' });
+      }
+      recordApiKeyUse(id);
+      req.apiKeyAuthenticated = true;
+      return;
     }
-    // Only challenge browsers that didn't try a token, and only when basic auth exists.
-    if (basicHeader && !req.headers.authorization?.startsWith('Bearer ') && !req.headers['x-api-key']) {
-      reply.header('www-authenticate', 'Basic realm="Abacus"');
-    }
-    reply.code(401).send({ error: 'Authentication required' });
-  });
-}
+  } else if (!basicHeader) {
+    return;
+  }
+  // Only challenge browsers that didn't try a token.
+  if (basicHeader && token === undefined) reply.header('www-authenticate', 'Basic realm="Abacus"');
+  return reply.code(401).send({ error: 'Authentication required' });
+});
 
 // gzip/brotli for JSON and the JS/CSS bundle (images & video are already compressed and skipped)
 await app.register(fastifyCompress, { threshold: 1024 });

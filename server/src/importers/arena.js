@@ -95,7 +95,7 @@ const X_TITLE = /^(.*?) on X:? @?([A-Za-z0-9_]{1,30})\b/;
 const X_STATUS = /^https?:\/\/(?:www\.)?(?:x|twitter)\.com\/([A-Za-z0-9_]{1,30})\/status\/(\d+)/;
 
 /** Import one block. Returns [{ status, item | id }]. */
-export async function importBlock(block, { folderIds = [] } = {}) {
+export async function importBlock(block, { folderIds = [], tags = [], notes = null } = {}) {
   const key = `arena:block:${block.id}`;
   const existing = findByMediaUrl(key);
   if (existing) return [{ status: 'skipped', id: existing.id }];
@@ -118,6 +118,8 @@ export async function importBlock(block, { folderIds = [] } = {}) {
     authorHandle: xTitle?.[2] || xStatus?.[1] || null,
     postedAt: block.createdAt,
     folderIds,
+    tags,
+    notes,
   };
 
   if (!block.entry) {

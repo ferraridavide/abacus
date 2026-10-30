@@ -4,45 +4,57 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Abacus</title>
+    <link rel="stylesheet" href="shared.css" />
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
     <header class="head">
-      <img src="icons/icon48.png" alt="" width="30" height="30" />
+      <span class="logo" role="img" aria-label="Abacus">🧮</span>
       <div class="titles">
-        <h1>Abacus</h1>
-        <p id="status">Checking connection…</p>
+        <h1>Save to Abacus</h1>
       </div>
-      <button id="options" class="icon" type="button" title="Extension settings">⚙</button>
+      <div class="head-actions">
+        <button id="open-app" class="icon-btn" type="button" title="Open Abacus" aria-label="Open Abacus in a new tab" disabled>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M10 14 21 3M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" /></svg>
+        </button>
+        <button id="options" class="icon-btn" type="button" title="Extension settings" aria-label="Extension settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m9.7 4.3.5-2.3h3.6l.5 2.3 1.7 1 2.3-.7 1.8 3.1-1.8 1.6v3.4l1.8 1.6-1.8 3.1-2.3-.7-1.7 1-.5 2.3h-3.6l-.5-2.3-1.7-1-2.3.7-1.8-3.1 1.8-1.6V9.3L4.4 7.7l1.8-3.1 2.3.7z" />
+            <circle cx="12" cy="11" r="3" />
+          </svg>
+        </button>
+      </div>
     </header>
-
-    <form id="form">
-      <label>
-        <span>Page URL</span>
-        <input id="url" type="url" placeholder="https://…" />
-      </label>
-      <label>
-        <span>Name</span>
-        <input id="name" type="text" placeholder="Title from the page" />
-      </label>
-      <label>
-        <span>Folder</span>
-        <input id="folder" type="text" list="folders" placeholder="Library (no folder) · e.g. Design / Logos" />
-        <datalist id="folders"></datalist>
-      </label>
-      <label>
-        <span>Tags</span>
-        <input id="tags" type="text" placeholder="inspiration, design" />
-      </label>
-      <label>
-        <span>Note</span>
-        <textarea id="notes" rows="2" placeholder="Optional note"></textarea>
-      </label>
-      <button id="save" class="primary" type="submit">Save to Abacus</button>
-    </form>
-
-    <p id="result" class="result" role="status" hidden></p>
-
+    <main>
+      <form id="form" novalidate>
+        <label>
+          <span>Page URL</span>
+          <input id="url" type="url" placeholder="https://…" aria-describedby="url-error" />
+          <small id="url-error" class="field-error" role="alert" hidden></small>
+        </label>
+        <label>
+          <span>Name</span>
+          <input id="name" type="text" placeholder="Title from the page" />
+        </label>
+        <div class="destination">
+          <label>
+            <span>Folder</span>
+            <input id="folder" type="text" placeholder="Library (no folder)" />
+          </label>
+          <label>
+            <span>Tags</span>
+            <input id="tags" type="text" placeholder="inspiration, design" />
+          </label>
+        </div>
+        <label>
+          <span>Note</span>
+          <textarea id="notes" rows="2" placeholder="Add a note…" aria-describedby="notes-error"></textarea>
+          <small id="notes-error" class="field-error" role="alert" hidden></small>
+        </label>
+        <button id="save" class="btn primary" type="submit" aria-live="polite" disabled>Save to Abacus</button>
+      </form>
+    </main>
     <script type="module" src="popup.js"></script>
+    <script type="module" src="autocomplete-init.js"></script>
   </body>
 </html>

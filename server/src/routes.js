@@ -3,12 +3,9 @@ import { addContent, addUpload } from './add.js';
 import { getJob } from './jobs.js';
 import { activeProviders, listProviderSettings, testProvider, updateProvider } from './providers/index.js';
 import * as embeddings from './embeddings.js';
+import { createApiKey, deleteApiKey, listApiKeys } from './api-keys.js';
 
 const notFound = (reply) => reply.code(404).send({ error: 'Not found' });
-
-const notAnItem = () => {
-  throw Object.assign(new Error('Are.na exports go to /api/add or /api/import/arena'), { statusCode: 400 });
-};
 
 /** The /api/add response: counts, the items (when finished), the job (for links), and any warnings. */
 function addResponse({ job, items, warnings = [] }) {
@@ -32,11 +29,15 @@ function addResponse({ job, items, warnings = [] }) {
 export async function routes(app) {
   app.get('/api/health', async () => ({ ok: true }));
 
-  app.get('/api/bootstrap', async () => ({
-    stats: lib.getStats(),
-    folders: lib.listFolders(),
-    tags: lib.listTags(),
-  }));
+  app.get('/api/bootstrap', async (req) => {
+    if (req.apiKeyAuthenticated) return { folders: lib.listFolderTree() };
+    return { stats: lib.getStats(), folders: lib.listFolders(), tags: lib.listTags() };
+  });
+
+  app.get('/api/autocomplete', async (req, reply) => {
+    reply.header('cache-control', 'no-store');
+    return { folders: lib.listFolderTree(), tags: lib.listTagNames() };
+  });
 
   // ---------- items ----------
   const itemQuery = (q) => ({
@@ -104,7 +105,7 @@ export async function routes(app) {
   app.post('/api/v1/add', handleAdd);
 
   // ---------- legacy wrappers over /api/add, kept for older clients ----------
-  app.post('/api/upload', async (req) => (await addUpload(req)).item ?? notAnItem());
+  app.post('/api/upload', async (req) => (await addUpload(req, { arena: 'off' })).item);
 
   app.post('/api/import', async (req, reply) => {
     const { text, urls, folderId, folder, tags } = req.body || {};
@@ -120,6 +121,20 @@ export async function routes(app) {
   app.get('/api/import/sources', async () => ({ providers: await activeProviders() }));
 
   app.get('/api/jobs/:id', async (req, reply) => getJob(req.params.id) || notFound(reply));
+
+  // ---------- settings (integration API keys) ----------
+  app.get('/api/settings/api-keys', async (req, reply) => {
+    reply.header('cache-control', 'no-store');
+    return listApiKeys();
+  });
+  app.post('/api/settings/api-keys', async (req, reply) => {
+    reply.header('cache-control', 'no-store');
+    return reply.code(201).send(createApiKey(req.body?.name));
+  });
+  app.delete('/api/settings/api-keys/:id', async (req, reply) => {
+    if (!deleteApiKey(req.params.id)) return notFound(reply);
+    return { ok: true };
+  });
 
   // ---------- settings (import providers) ----------
   app.get('/api/settings/providers', async () => listProviderSettings());

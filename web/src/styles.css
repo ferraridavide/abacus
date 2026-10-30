@@ -69,7 +69,8 @@ a {
 ::-webkit-scrollbar-thumb:hover {
   background-color: rgba(255, 255, 255, 0.18);
 }
-::-webkit-scrollbar-track {
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
   background: transparent;
 }
 
@@ -843,6 +844,20 @@ a {
 }
 .star.on svg {
   fill: currentColor;
+}
+.rating .star:hover,
+.rating .star:has(~ .star:hover) {
+  color: #ffd166;
+}
+.rating .star:hover svg,
+.rating .star:has(~ .star:hover) svg {
+  fill: none;
+}
+.rating .star:hover ~ .star {
+  color: var(--text-faint);
+}
+.rating .star:hover ~ .star svg {
+  fill: none;
 }
 .menu-colors {
   display: flex;
@@ -2058,8 +2073,11 @@ a {
   place-items: center;
   overflow: hidden;
   position: relative;
-  cursor: grab;
+  cursor: default;
   touch-action: none;
+}
+.zoom-wrap.pannable {
+  cursor: grab;
 }
 .zoom-wrap.dragging {
   cursor: grabbing;
@@ -2079,17 +2097,58 @@ a {
   width: 100%;
   height: 100%;
 }
-.zoom-level {
+.zoom-controls {
   position: absolute;
   bottom: 12px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.6);
-  padding: 4px 10px;
-  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(18, 19, 22, 0.92);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  cursor: default;
+  user-select: none;
+}
+.zoom-controls button {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.zoom-controls button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+.zoom-controls button[aria-pressed='true'] {
+  color: #a9c3ff;
+  background: rgba(91, 140, 255, 0.18);
+}
+.zoom-controls button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.zoom-controls button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.zoom-level {
+  min-width: 58px;
+  text-align: center;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  pointer-events: none;
+}
+.zoom-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: rgba(255, 255, 255, 0.14);
 }
 .viewer-nav {
   position: absolute;
@@ -2119,6 +2178,14 @@ a {
   flex-direction: column;
   align-items: center;
   gap: 20px;
+  max-height: 100%;
+  overflow: auto;
+}
+.viewer-bookmark-image {
+  max-width: min(600px, 80vw);
+  max-height: 35vh;
+  object-fit: contain;
+  border-radius: 8px;
 }
 
 /* ---------------- notifications ---------------- */
@@ -2574,6 +2641,67 @@ a {
   font-size: 11.5px;
   line-height: 1.5;
   margin-top: -6px;
+}
+.integration-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.api-key-form .text-input {
+  min-width: 0;
+  flex: 1;
+}
+.api-key-form .btn {
+  flex: none;
+}
+.api-key-created {
+  padding: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--panel-2);
+}
+.api-key-token {
+  font-family: monospace;
+  font-size: 12px;
+}
+.api-key-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.api-key-created .provider-status {
+  margin-top: 10px;
+}
+.api-key-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel-2);
+  overflow: hidden;
+}
+.api-key-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.api-key-row + .api-key-row {
+  border-top: 1px solid var(--border);
+}
+.api-key-row .provider-name {
+  overflow-wrap: anywhere;
+}
+.api-key-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px 12px;
+  color: var(--text-faint);
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
 }
 .choice-list {
   display: flex;
@@ -3063,13 +3191,16 @@ a {
   .icon-btn.floating {
     opacity: 1;
   }
-  /* swipe instead; pinch zooms the page */
+  /* Swipe between items; the image canvas handles its own pinch gesture. */
   .viewer-nav {
     display: none;
   }
-  .viewer-stage,
-  .zoom-wrap {
+  .viewer-stage {
     touch-action: pinch-zoom;
+  }
+  .zoom-controls button {
+    min-width: 40px;
+    height: 40px;
   }
 }
 

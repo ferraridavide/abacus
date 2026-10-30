@@ -6,7 +6,7 @@ const STORAGE_KEY = 'config';
 
 // How often, and for how long, to follow an import job (video downloads can take minutes).
 const POLL_MS = 1500;
-const POLL_LIMIT_MS = 15 * 60 * 1000;
+export const POLL_LIMIT_MS = 15 * 60 * 1000;
 
 // Credentials stay in this browser profile: chrome.storage.local is not synced to Google.
 export async function getConfig() {
@@ -19,13 +19,19 @@ export async function getConfig() {
     password: config.password || '',
     folder: config.folder || '',
     tags: config.tags || '',
+    contextMenuEnabled: (config.contextMenuEnabled ?? config.pageContextMenuEnabled) === true,
+    keyboardShortcutEnabled: config.keyboardShortcutEnabled === true,
   };
 }
 
-export async function setConfig(patch) {
-  const next = { ...(await getConfig()), ...patch };
-  await chrome.storage.local.set({ [STORAGE_KEY]: next });
-  return next;
+let configUpdate = Promise.resolve();
+export function setConfig(patch) {
+  configUpdate = configUpdate.catch(() => {}).then(async () => {
+    const next = { ...(await getConfig()), ...patch };
+    await chrome.storage.local.set({ [STORAGE_KEY]: next });
+    return next;
+  });
+  return configUpdate;
 }
 
 /** "host:8090/" -> "http://host:8090". Returns '' for an empty or invalid value. */
@@ -64,27 +70,44 @@ export async function apiFetch(config, pathname, options = {}) {
     throw new Error(`Cannot reach ${config.serverUrl} (${err.message}). Is this device on the network that can reach it?`);
   }
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401) throw new Error('Abacus rejected the token or login. Check the extension options.');
-  if (!res.ok) throw new Error(data.error || `Abacus returned HTTP ${res.status}`);
+  if (!res.ok) {
+    const message = res.status === 401
+      ? 'Abacus rejected the token or login. Check the extension options.'
+      : data.error || `Abacus returned HTTP ${res.status}`;
+    throw Object.assign(new Error(message), { status: res.status });
+  }
   return data;
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/**
- * Add to Abacus and wait for the result. Imports run as a job that is polled, so no single request stays open
- * long: Chrome stops an extension's service worker when a fetch takes more than 30 seconds.
- * `onProgress(job)` is called on every poll. Rejects with the server's reason when nothing could be saved.
- */
-export async function addToAbacus(payload, { config, onProgress } = {}) {
-  config ||= await getConfig();
-  const data = await apiFetch(config, '/api/add', {
+export function resultFromJob(data, job) {
+  if (job.failed && !job.imported && !job.skipped) {
+    throw new Error(job.entries.find((e) => e.error)?.error || 'The import failed');
+  }
+  return { ...data, ok: job.failed === 0, pending: false, job, created: job.imported, skipped: job.skipped, failed: job.failed };
+}
+
+/** Submit without waiting; background imports are tracked persistently by pending-jobs.js. */
+export async function submitToAbacus(payload, config) {
+  return apiFetch(config, '/api/add', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ ...payload, async: true }),
   });
+}
+
+/**
+ * Add to Abacus and wait in the popup. `onPending(data)` registers background tracking before showing progress,
+ * so closing the popup doesn't lose the completion notification. Background callers use submitToAbacus instead.
+ * `onProgress(job)` is called on every poll. Rejects with the server's reason when nothing could be saved.
+ */
+export async function addToAbacus(payload, { config, onProgress, onPending } = {}) {
+  config ||= await getConfig();
+  const data = await submitToAbacus(payload, config);
   let job = data.job;
   if (!job) return data;
+  if (job.status !== 'done') await onPending?.(data);
 
   const started = Date.now();
   while (job.status !== 'done') {
@@ -93,11 +116,7 @@ export async function addToAbacus(payload, { config, onProgress } = {}) {
     await sleep(POLL_MS);
     job = await apiFetch(config, '/api/jobs/' + job.id);
   }
-  const result = { ...data, pending: false, job, created: job.imported, skipped: job.skipped, failed: job.failed };
-  if (job.failed && !job.imported && !job.skipped) {
-    throw new Error(job.entries.find((e) => e.error)?.error || 'The import failed');
-  }
-  return result;
+  return resultFromJob(data, job);
 }
 
 export function parseTagList(value) {

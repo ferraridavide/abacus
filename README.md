@@ -110,12 +110,11 @@ Set these environment variables in `docker-compose.yml` or in your shell.
 | `DATA_DIR`           | `./data` | Directory for the database, files, and thumbnails.       |
 | `AUTH_PASSWORD`      | None     | If set, the server requires HTTP basic authentication.   |
 | `AUTH_USER`          | `abacus` | User name for basic authentication.                      |
-| `API_TOKEN`          | None     | Token that can only add content, for scripts and extensions. |
 | `IMPORT_CONCURRENCY` | `3`      | Number of links fetched in parallel during an import.    |
 | `MAX_DOWNLOAD_MB`    | `1024`   | Maximum size of a single downloaded or uploaded file.    |
 
 Per-browser preferences, such as layout, thumbnail size, and video autoplay, are set in **Settings**. Import
-providers are also set up there, and apply to every browser.
+providers and API keys (**Settings → Integration**) are also set up there, and apply to every browser.
 
 ## Search by color
 
@@ -200,12 +199,18 @@ Content-Type: application/json
 ```
 
 It takes a `url`, several `urls`, `text` (with links, or as a note), or a file, including Are.na exports. Set
-`API_TOKEN` on the server for scripts and extensions. The token can only add content: it can't read, change, or
+up a named API key in **Settings → Integration** for scripts and extensions. Copy the key when it is created;
+it is only shown once. The token can only add content: it can't read, change, or
 delete your library, so it's safer to keep in a browser or a script than the login. See
 **[docs/API.md](docs/API.md)** for the full reference.
 
 **Chrome extension**: load `extensions/chrome` with **Load unpacked** in `chrome://extensions`, then enter your
 server and token. See [extensions/chrome/README.md](extensions/chrome/README.md).
+
+Integration lists each key's name and last-used time. Revoking a key stops it immediately. Only SHA-256 hashes
+are stored in the database. Existing `API_TOKEN` (or `ABACUS_API_TOKEN`) values are imported once as **Legacy
+API token**; remove the environment variable after upgrading. Revoked legacy keys stay revoked after a restart.
+Set `AUTH_PASSWORD` to require a web login; creating API keys does not enable the web login by itself.
 
 ## Data storage
 

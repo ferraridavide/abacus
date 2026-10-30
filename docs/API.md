@@ -12,9 +12,9 @@ The examples use `http://my-server:8090`; replace it with the address you open A
 
 `/api/add` accepts either credential:
 
-- **The API token** (recommended for scripts and extensions), sent as `Authorization: Bearer <token>` or
-  `x-api-key: <token>`. Set it on the server with the `API_TOKEN` environment variable. Generate one with
-  `openssl rand -hex 24`.
+- **An API key** (recommended for scripts and extensions), sent as `Authorization: Bearer <token>` or
+  `x-api-key: <token>`. Create a named key in **Settings → Integration** and copy it immediately. The full key
+  is shown only once; only its SHA-256 hash is saved in the database.
 - **The web login** (`AUTH_USER` / `AUTH_PASSWORD`), as HTTP basic auth.
 
 The token can only add content. It works on these routes and nothing else:
@@ -25,12 +25,29 @@ The token can only add content. It works on these routes and nothing else:
 | `POST /api/v1/add`     | The same, under a versioned path.          |
 | `GET /api/jobs/:id`    | Following an import.                       |
 | `GET /api/bootstrap`   | Listing folders, for a folder picker.      |
+| `GET /api/autocomplete` | Folder tree and tag names for autocomplete. |
+
+With an API key, `GET /api/bootstrap` returns only `{ "folders": [{ "id": "…", "name": "…", "parentId": null }] }`
+for folder selection, without library statistics or item counts. The web login retains the full bootstrap response.
+
+`GET /api/autocomplete` returns `{ "folders": [{ "id": "…", "name": "…", "parentId": null }], "tags": ["design"] }`.
+It requires an API key or the web login, excludes trashed-only tags, and returns no counts or item metadata.
+Extension clients request it lazily when folder or tag autocomplete is opened, sharing the result between
+both fields until the page closes or the server/credentials change. Responses use `Cache-Control: no-store`.
 
 Any other request made with the token gets `403`. Reading, editing, or deleting items, changing settings, and
 downloading files need the web login. So a leaked token can add items, but can't read or delete your library.
 
-`API_TOKEN` is in addition to the login. Keep `AUTH_PASSWORD` set when you use the web app, because browsers can't
-send a bearer token.
+API keys are separate from the web login. Set `AUTH_PASSWORD` to protect the web app and settings; without it,
+the web app remains accessible without credentials, even after creating keys. Requests presenting an API key
+always have the restricted permissions above.
+
+**Settings → Integration** lists each key's name and last-used time and lets you revoke it immediately.
+Existing server `API_TOKEN` (or `ABACUS_API_TOKEN`) values are imported once as **Legacy API token**. Remove
+the environment variable after upgrading; revoking that key remains effective after restarts.
+
+The examples below use `API_TOKEN` as a variable in the calling script containing a key copied from settings;
+the server no longer needs that environment variable.
 
 `GET /api/health` needs no credentials. Browser extensions may call the API cross-origin
 (`chrome-extension://`, `moz-extension://`, `safari-web-extension://`); websites may not.
@@ -62,7 +79,7 @@ Imports links, or stores a note when there are none.
 | `linksOnly` | boolean            | Answer `400` when there are no links, instead of creating a note.                            |
 
 Links go through the import pipeline: X posts use Abacus's X importer, sites that an import provider supports use
-the provider, direct media URLs are downloaded, and other pages are saved with their preview image.
+the provider, direct media URLs are downloaded, and other pages are saved as bookmarks with an optional preview image.
 
 Adding a link that is already in the library doesn't create a duplicate, and doesn't change the existing item:
 its name and notes stay as they are. The response counts it as `skipped`.
@@ -95,7 +112,8 @@ its name and notes stay as they are. The response counts it as `skipped`.
 `warnings` lists things worth telling the user that didn't stop the save, such as a deleted folder, or notes that
 weren't applied because the item was already in the library.
 
-`items` is empty while a job is running. `name` and `notes` are still applied to new items when it finishes.
+`items` contains only newly created items; skipped items never expose their existing metadata. It is empty
+while a job is running. `name` and `notes` are still applied to new items when it finishes.
 
 ## `POST /api/add` with a file
 
@@ -124,6 +142,8 @@ The response is `201` with the item in `items`.
 A `.zip` that is an Are.na channel export is imported: each channel becomes a folder, inside `folder` if given.
 The response is `202` with a job. Any other `.zip` is stored as a file. Set `arena=only` to get `422` instead when
 the zip isn't an export, or `arena=off` to always store the zip as a file.
+Supplied `tags` and `notes` apply to every newly imported block; existing blocks are left unchanged.
+The legacy `/api/upload` route always stores ZIPs as files, including Are.na exports.
 
 ## Jobs
 

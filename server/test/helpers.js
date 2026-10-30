@@ -38,8 +38,7 @@ export async function waitFor(url, timeout = 20000, describeLog = () => '') {
 }
 
 /** Start a throwaway Abacus server on a free local port. */
-export async function startAbacus(env = {}) {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'abacus-test-'));
+export async function startAbacus(env = {}, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'abacus-test-')) } = {}) {
   const port = await freePort();
   const baseUrl = `http://127.0.0.1:${port}`;
   let log = '';
@@ -114,14 +113,14 @@ export async function startAbacus(env = {}) {
     get log() {
       return log;
     },
-    async stop() {
+    async stop({ removeData = true } = {}) {
       server.kill('SIGTERM');
       await new Promise((resolve) => {
         if (server.exitCode !== null) return resolve();
         server.once('exit', resolve);
         setTimeout(resolve, 3000);
       });
-      fs.rmSync(dataDir, { recursive: true, force: true });
+      if (removeData) fs.rmSync(dataDir, { recursive: true, force: true });
     },
   };
 }

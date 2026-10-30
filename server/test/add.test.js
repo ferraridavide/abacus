@@ -21,9 +21,9 @@ after(async () => {
 const page = (title) => `${fixture.url}/page/${encodeURIComponent(title)}`;
 const pic = (name) => `${fixture.url}/pic/${name}.png`;
 
-function arenaZip() {
+function arenaZip(id = 1) {
   const zip = new AdmZip();
-  zip.addFile('moodboard-abc12345xyz.csv', Buffer.from('ID,Filename,Title,Description,Created At,Updated At,Source\n1,one.png,First block,,,,\n'));
+  zip.addFile('moodboard-abc12345xyz.csv', Buffer.from(`ID,Filename,Title,Description,Created At,Updated At,Source\n${id},one.png,First block,,,,\n`));
   zip.addFile('one.png', PNG);
   return zip.toBuffer();
 }
@@ -196,6 +196,32 @@ describe('files', () => {
     assert.equal(data.items[0].type, 'file');
   });
 
+  test('Are.na tags and notes apply to new blocks and leave existing blocks unchanged', async () => {
+    const upload = () => {
+      const form = new FormData();
+      form.append('tags', '["inspiration", "design", "design"]');
+      form.append('notes', 'From the API');
+      form.append('file', new Blob([arenaZip(2)]), 'metadata.zip');
+      return form;
+    };
+    const first = await call('POST', '/api/add', upload());
+    assert.equal(first.status, 202);
+    const job = await app.waitForJob(first.data.job.id);
+    assert.equal(job.imported, 1);
+    const id = job.entries[0].itemIds[0];
+    const item = await app.item(id);
+    assert.equal(item.notes, 'From the API');
+    assert.deepEqual(item.tags, ['design', 'inspiration']);
+
+    await call('PATCH', '/api/items/' + id, { notes: 'Edited later', tags: ['kept'] }, { as: 'basic' });
+    const again = await call('POST', '/api/add', upload());
+    const skipped = await app.waitForJob(again.data.job.id);
+    assert.deepEqual([skipped.imported, skipped.skipped], [0, 1]);
+    const kept = await app.item(id);
+    assert.equal(kept.notes, 'Edited later');
+    assert.deepEqual(kept.tags, ['kept']);
+  });
+
   test('a multipart request without a file says so', async () => {
     const form = new FormData();
     form.append('name', 'no file');
@@ -223,6 +249,25 @@ describe('legacy routes used by older clients', () => {
     const { status, data } = await call('POST', '/api/upload', form, { as: 'basic' });
     assert.equal(status, 200, JSON.stringify(data));
     assert.equal(data.name, 'legacy');
+  });
+
+  test('/api/upload stores Are.na exports without importing their blocks', async () => {
+    const foldersBefore = await app.folders();
+    const form = new FormData();
+    // The compatibility route must retain file-upload behavior even when auto import is requested.
+    form.append('arena', 'auto');
+    const zip = arenaZip(777);
+    form.append('file', new Blob([zip], { type: 'application/zip' }), 'legacy-export.zip');
+    const { status, data } = await call('POST', '/api/upload', form, { as: 'basic' });
+    assert.equal(status, 200, JSON.stringify(data));
+    assert.equal(data.type, 'file');
+    assert.equal(data.ext, 'zip');
+    assert.equal(data.size, zip.length);
+    assert.deepEqual(await app.folders(), foldersBefore);
+    const response = await fetch(app.baseUrl + data.fileUrl, {
+      headers: { authorization: 'Basic ' + Buffer.from('abacus:secret').toString('base64') },
+    });
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()), zip);
   });
 
   test('/api/import/arena imports an export and answers 422 for other zips', async () => {

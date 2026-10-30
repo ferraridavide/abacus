@@ -506,6 +506,13 @@ export function getStats() {
   };
 }
 
+/** Autocomplete values only: no counts or item metadata. */
+export function listTagNames() {
+  return db.prepare(`SELECT DISTINCT t.tag COLLATE NOCASE AS name FROM item_tags t
+    JOIN items i ON i.id = t.item_id WHERE i.deleted_at IS NULL ORDER BY name COLLATE NOCASE`)
+    .all().map((row) => row.name);
+}
+
 export function listTags() {
   return db
     .prepare(
@@ -614,6 +621,11 @@ function removeItemFiles({ id, thumb }) {
 }
 
 // ---------- folders ----------
+
+/** Folder-picker data for API clients, without library counts or media metadata. */
+export function listFolderTree() {
+  return db.prepare('SELECT id, name, parent_id AS parentId FROM folders ORDER BY sort, name COLLATE NOCASE').all();
+}
 
 export function listFolders() {
   return db

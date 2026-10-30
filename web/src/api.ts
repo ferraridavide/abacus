@@ -1,5 +1,7 @@
 import type {
   ActiveProvider,
+  ApiKey,
+  CreatedApiKey,
   EmbeddingStatus,
   Folder,
   Item,
@@ -48,6 +50,9 @@ export interface Backend {
   deleteFolder(id: string): Promise<{ ok: boolean }>;
   startImport(body: { text: string; folderId?: string; tags?: string[] }): Promise<Job>;
   importSources(): Promise<{ providers: ActiveProvider[] }>;
+  apiKeys(): Promise<ApiKey[]>;
+  createApiKey(name: string): Promise<CreatedApiKey>;
+  deleteApiKey(id: string): Promise<{ ok: boolean }>;
   providerSettings(): Promise<ProviderSettings[]>;
   updateProvider(id: string, body: ServicePatch): Promise<ProviderSettings>;
   testProvider(id: string, values: Record<string, string>): Promise<ProviderTest>;

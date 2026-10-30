@@ -1,5 +1,7 @@
 import type {
   ActiveProvider,
+  ApiKey,
+  CreatedApiKey,
   EmbeddingStatus,
   Folder,
   Item,
@@ -51,6 +53,9 @@ export const httpBackend: Backend = {
     return data.job;
   },
   importSources: () => request<{ providers: ActiveProvider[] }>('GET', '/api/import/sources'),
+  apiKeys: () => request<ApiKey[]>('GET', '/api/settings/api-keys'),
+  createApiKey: (name: string) => request<CreatedApiKey>('POST', '/api/settings/api-keys', { name }),
+  deleteApiKey: (id: string) => request<{ ok: boolean }>('DELETE', `/api/settings/api-keys/${id}`),
   providerSettings: () => request<ProviderSettings[]>('GET', '/api/settings/providers'),
   updateProvider: (id: string, body: { enabled?: boolean; values?: Record<string, string> }) =>
     request<ProviderSettings>('PATCH', `/api/settings/providers/${id}`, body),

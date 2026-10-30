@@ -1,15 +1,18 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
-import { startAbacus } from './helpers.js';
+import { startAbacus, startFixture } from './helpers.js';
 
 let app;
+let fixture;
 
 before(async () => {
   app = await startAbacus();
+  fixture = await startFixture();
 });
 
 after(async () => {
   await app?.stop();
+  await fixture?.close();
 });
 
 describe('authentication', () => {
@@ -45,6 +48,43 @@ describe('authentication', () => {
     assert.equal((await app.call('GET', '/api/jobs/unknown')).status, 404);
   });
 
+  test('API-key bootstrap only returns the folder tree, without library counts', async () => {
+    const parent = await app.call('POST', '/api/folders', { name: 'Tree parent' }, { as: 'basic' });
+    const child = await app.call('POST', '/api/folders', { name: 'Tree child', parentId: parent.data.id }, { as: 'basic' });
+    for (const headers of [{ authorization: 'Bearer test-token' }, { 'x-api-key': 'test-token' }]) {
+      const { status, data } = await app.call('GET', '/api/bootstrap', undefined, { as: 'none', headers });
+      assert.equal(status, 200);
+      assert.deepEqual(Object.keys(data), ['folders']);
+      assert.ok(data.folders.some((folder) => folder.id === child.data.id && folder.parentId === parent.data.id));
+      for (const folder of data.folders) assert.deepEqual(Object.keys(folder).sort(), ['id', 'name', 'parentId']);
+    }
+    const web = await app.call('GET', '/api/bootstrap', undefined, { as: 'basic' });
+    assert.equal(web.status, 200);
+    assert.ok(web.data.stats);
+    assert.ok(Array.isArray(web.data.tags));
+  });
+
+  test('autocomplete authenticates and returns only folder identifiers and active tag names', async () => {
+    const folder = (await app.call('POST', '/api/folders', { name: 'Autocomplete folder' }, { as: 'basic' })).data;
+    await app.call('POST', '/api/add', { text: 'Tagged note', tags: ['Lazy tag', 'Design'] });
+    const trash = (await app.call('POST', '/api/add', { text: 'Trashed note', tags: ['Trash only tag'] })).data.items[0];
+    await app.call('POST', '/api/items/batch', { ids: [trash.id], action: 'delete' }, { as: 'basic' });
+    for (const headers of [{ authorization: 'Bearer test-token' }, { 'x-api-key': 'test-token' }]) {
+      const response = await app.call('GET', '/api/autocomplete', undefined, { as: 'none', headers });
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get('cache-control'), 'no-store');
+      assert.deepEqual(Object.keys(response.data).sort(), ['folders', 'tags']);
+      assert.ok(response.data.folders.some((entry) => entry.id === folder.id));
+      for (const entry of response.data.folders) assert.deepEqual(Object.keys(entry).sort(), ['id', 'name', 'parentId']);
+      assert.ok(response.data.tags.includes('Lazy tag'));
+      assert.ok(!response.data.tags.includes('Trash only tag'));
+      assert.ok(response.data.tags.every((tag) => typeof tag === 'string'));
+    }
+    assert.equal((await app.call('GET', '/api/autocomplete', undefined, { as: 'basic' })).status, 200);
+    assert.equal((await app.call('GET', '/api/autocomplete', undefined, { as: 'none' })).status, 401);
+    assert.equal((await app.call('GET', '/api/autocomplete', undefined, { as: 'none', headers: { authorization: 'Bearer wrong' } })).status, 401);
+  });
+
   test('the token cannot read, change, or delete the library', async () => {
     const id = (await app.call('POST', '/api/add', { name: 'Protected', text: 't' })).data.items[0].id;
     const denied = [
@@ -66,6 +106,30 @@ describe('authentication', () => {
       assert.match(data.error, /can only add content/);
     }
     assert.equal((await app.item(id)).name, 'Protected');
+  });
+
+  test('adding an existing URL never returns its private metadata to a token', async () => {
+    const url = fixture.url + '/page/Existing';
+    const first = await app.call('POST', '/api/add', { url }, { as: 'basic' });
+    const id = first.data.items[0].id;
+    await app.call('PATCH', '/api/items/' + id, {
+      name: 'Private title', notes: 'Private notes', tags: ['Private tag'], rating: 5,
+    }, { as: 'basic' });
+
+    for (const pathname of ['/api/add', '/api/v1/add']) {
+      for (const auth of [{}, { as: 'none', headers: { 'x-api-key': 'test-token' } }]) {
+        const { status, data } = await app.call('POST', pathname, { url }, auth);
+        assert.equal(status, 200);
+        assert.equal(data.skipped, 1);
+        assert.deepEqual(data.items, []);
+        assert.doesNotMatch(JSON.stringify(data), /Private/);
+      }
+    }
+    const mixed = await app.call('POST', '/api/add', { urls: [url, fixture.url + '/page/New'] });
+    assert.deepEqual([mixed.data.created, mixed.data.skipped], [1, 1]);
+    assert.equal(mixed.data.items.length, 1);
+    assert.equal(mixed.data.items[0].name, 'New');
+    assert.doesNotMatch(JSON.stringify(mixed.data), /Private/);
   });
 });
 

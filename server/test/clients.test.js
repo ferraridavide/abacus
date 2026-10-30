@@ -27,7 +27,20 @@ describe('Chrome extension helpers', () => {
 
   test('waits for an import to finish and returns the counts', async () => {
     const progress = [];
-    const data = await lib.addToAbacus({ url: page('Chrome page') }, { config: config(), onProgress: (j) => progress.push(j.status) });
+    let registered = false;
+    const data = await lib.addToAbacus({ url: page('Chrome page') }, {
+      config: config(),
+      onPending: async (data) => {
+        assert.ok(data.job.id);
+        await Promise.resolve();
+        registered = true;
+      },
+      onProgress: (job) => {
+        assert.equal(registered, true, 'persist the background job before reporting progress');
+        progress.push(job.status);
+      },
+    });
+    assert.equal(registered, true);
     assert.deepEqual([data.created, data.skipped, data.failed], [1, 0, 0]);
     assert.equal(lib.summarize(data), '1 saved');
   });

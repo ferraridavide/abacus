@@ -7,6 +7,7 @@
     "activeTab",
     "contextMenus",
     "storage",
+    "alarms",
     "notifications"
   ],
   "background": {
@@ -32,11 +33,7 @@
   },
   "commands": {
     "save-page": {
-      "suggested_key": {
-        "default": "Alt+Shift+A",
-        "mac": "Alt+Shift+A"
-      },
-      "description": "Save the current page to Abacus"
+      "description": "Save to Abacus"
     }
   },
   "optional_host_permissions": [

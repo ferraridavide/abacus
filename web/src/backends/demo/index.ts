@@ -449,6 +449,9 @@ export async function createDemoBackend() {
     job: () => Promise.reject(new Error('Not found')),
     // no providers: the import dialog just lists the built-in sources
     importSources: async () => ({ providers: [] }),
+    apiKeys: () => unavailable('Managing API keys'),
+    createApiKey: () => unavailable('Managing API keys'),
+    deleteApiKey: () => unavailable('Managing API keys'),
     providerSettings: () => unavailable('Setting up import providers'),
     updateProvider: () => unavailable('Setting up import providers'),
     testProvider: () => unavailable('Setting up import providers'),

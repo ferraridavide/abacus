@@ -3,74 +3,122 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Abacus — Settings</title>
+    <title>Abacus — Extension settings</title>
+    <link rel="stylesheet" href="shared.css" />
     <link rel="stylesheet" href="options.css" />
   </head>
   <body>
-    <main>
-      <header class="head">
-        <img src="icons/icon128.png" alt="" width="44" height="44" />
-        <div>
-          <h1>Abacus</h1>
-          <p class="lead">Save anything to your self-hosted library.</p>
-        </div>
-      </header>
-
-      <form id="form">
-        <label>
-          <span>Server URL</span>
-          <input id="serverUrl" type="text" inputmode="url" placeholder="http://my-server:8090" required />
-          <small>The address you open Abacus at. Chrome asks once for access to it.</small>
-        </label>
-
-        <fieldset>
-          <legend>Authentication</legend>
-          <label>
-            <span>API token <em>(recommended)</em></span>
-            <input id="token" type="password" autocomplete="off" placeholder="Bearer token" />
-            <small>
-              The <code>API_TOKEN</code> value from the server's environment. It can only add content, so it's
-              safer to keep here than the login.
-            </small>
-          </label>
-          <p class="or">— or use the HTTP basic login —</p>
-          <div class="row">
-            <label>
-              <span>Username</span>
-              <input id="username" type="text" autocomplete="username" placeholder="abacus" />
-            </label>
-            <label>
-              <span>Password</span>
-              <input id="password" type="password" autocomplete="current-password" placeholder="••••••" />
-            </label>
+    <div class="settings-shell">
+      <main>
+        <header class="page-head">
+          <span class="logo" role="img" aria-label="Abacus">🧮</span>
+          <div>
+            <h1>Extension settings</h1>
+            <p>Connect your library and choose where new saves go.</p>
           </div>
-        </fieldset>
-
-        <div class="row">
-          <label>
-            <span>Default folder</span>
-            <input id="folder" type="text" placeholder="Inbox" />
-            <small>A path like <code>Design / Logos</code>; missing folders are created.</small>
-          </label>
-          <label>
-            <span>Default tags</span>
-            <input id="tags" type="text" placeholder="inspiration, design" />
-            <small>Comma separated.</small>
-          </label>
-        </div>
-
-        <div class="actions">
-          <button type="submit" class="primary">Save and test</button>
-        </div>
-        <p id="status" class="status" role="status"></p>
-      </form>
-
-      <footer>
-        The extension talks to <code>POST /api/add</code>, the same endpoint used by the web app, the
-        and the bookmarklet. See <code>docs/API.md</code> in the repository.
-      </footer>
-    </main>
-
+        </header>
+        <form id="form">
+          <section id="connection" aria-labelledby="connection-title">
+            <div class="section-head">
+              <h2 id="connection-title">Connection</h2>
+              <p class="hint">Your self-hosted Abacus server.</p>
+            </div>
+            <div class="form-card">
+              <label>
+                <span>Server URL</span>
+                <input id="serverUrl" type="text" inputmode="url" placeholder="http://my-server:8090" aria-describedby="server-hint" required />
+                <small id="server-hint">The address you open Abacus at. Chrome will ask for access when you save.</small>
+              </label>
+            </div>
+          </section>
+          <section id="authentication" aria-labelledby="authentication-title">
+            <div class="section-head">
+              <h2 id="authentication-title">Authentication</h2>
+              <p class="hint">Use an API token or your server login.</p>
+            </div>
+            <div class="form-card">
+              <label>
+                <span>API token <span class="badge">Recommended</span></span>
+                <input id="token" type="password" autocomplete="off" placeholder="Bearer token" aria-describedby="token-hint" />
+                <small id="token-hint">Create an API key in Abacus under <strong>Settings → Integration</strong>. It can only add content to your library.</small>
+              </label>
+              <div class="divider">Or use HTTP basic login</div>
+              <div class="row">
+                <label>
+                  <span>Username</span>
+                  <input id="username" type="text" autocomplete="username" placeholder="abacus" />
+                </label>
+                <label>
+                  <span>Password</span>
+                  <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" />
+                </label>
+              </div>
+            </div>
+          </section>
+          <section id="defaults" aria-labelledby="defaults-title">
+            <div class="section-head">
+              <h2 id="defaults-title">Save defaults</h2>
+              <p class="hint">A starting point for each new save.</p>
+            </div>
+            <div class="form-card row">
+              <label>
+                <span>Default folder</span>
+                <input id="folder" type="text" placeholder="Inbox" aria-describedby="folder-hint" />
+                <small id="folder-hint">Use a path like <code>Design / Logos</code>. Missing folders are created.</small>
+              </label>
+              <label>
+                <span>Default tags</span>
+                <input id="tags" type="text" placeholder="inspiration, design" aria-describedby="tags-hint" />
+                <small id="tags-hint">Separate tags with commas.</small>
+              </label>
+            </div>
+          </section>
+          <section aria-labelledby="quick-save-title">
+            <div class="section-head">
+              <h2 id="quick-save-title">Quick save</h2>
+              <p class="hint">Off by default. Changes apply immediately.</p>
+            </div>
+            <div class="form-card quick-save-card">
+              <div class="quick-save-item">
+                <label class="toggle-row">
+                  <span>
+                    <span>Context menu</span>
+                    <small id="context-menu-hint">Save pages, links, images, and selections with a right-click.</small>
+                  </span>
+                  <input id="contextMenuEnabled" class="switch" type="checkbox" role="switch" aria-describedby="context-menu-hint" disabled />
+                </label>
+                <p id="context-menu-status" class="status" role="status" hidden></p>
+              </div>
+              <div class="quick-save-item">
+                <div class="shortcut-row">
+                  <label for="keyboardShortcutEnabled">
+                    <span>Keyboard shortcut</span>
+                    <small id="shortcut-hint">Save the current page.</small>
+                  </label>
+                  <div class="shortcut-controls">
+                    <button id="change-shortcut" type="button" class="shortcut-editor" aria-label="Change keyboard shortcut in Chrome" title="Set or change keys in Chrome">
+                      <span id="shortcut-binding" role="status">Checking…</span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 5 5-12 12-6 1 1-6Z M14 5l5 5" /></svg>
+                    </button>
+                    <input id="keyboardShortcutEnabled" class="switch" type="checkbox" role="switch" aria-describedby="shortcut-hint" disabled />
+                  </div>
+                </div>
+                <p id="shortcut-status" class="status" role="status" hidden></p>
+              </div>
+            </div>
+          </section>
+          <div class="actions">
+            <button id="save-settings" type="submit" class="btn primary">Save and test</button>
+            <div class="connection-feedback" role="status">
+              <p id="status" class="connection-status" hidden></p>
+              <p id="status-detail" class="hint" hidden></p>
+            </div>
+          </div>
+        </form>
+        <footer>Settings are stored in this browser profile and aren’t synced to your Google account.</footer>
+      </main>
+    </div>
     <script type="module" src="options.js"></script>
+    <script type="module" src="autocomplete-init.js"></script>
   </body>
 </html>

@@ -82,6 +82,14 @@ db.exec(`
     value TEXT NOT NULL                   -- JSON
   );
 
+  CREATE TABLE IF NOT EXISTS api_keys (
+    id           TEXT PRIMARY KEY,
+    name         TEXT NOT NULL,
+    token_hash   TEXT NOT NULL UNIQUE,
+    created_at   INTEGER NOT NULL,
+    last_used_at INTEGER
+  );
+
 `);
 
 const EMBEDDINGS_TABLE = `

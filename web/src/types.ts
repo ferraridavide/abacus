@@ -176,3 +176,14 @@ export interface Job {
   entries: JobEntry[];
   kind?: 'import' | 'upload';
 }
+
+export interface ApiKey {
+  id: string;
+  name: string;
+  createdAt: number;
+  lastUsedAt: number | null;
+}
+
+export interface CreatedApiKey extends ApiKey {
+  token: string;
+}

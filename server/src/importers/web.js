@@ -72,7 +72,7 @@ export async function fetchPageInfo(url) {
   }
 }
 
-/** Import an arbitrary URL: a direct image/video, or a web page (saves its og:image). */
+/** Import an arbitrary URL: a direct image/video, or a bookmark with an optional preview image. */
 export async function importUrl(url, { folderIds = [], tags = [] } = {}) {
   const existing = findByMediaUrl(url);
   if (existing) return [{ status: 'skipped', id: existing.id }];
@@ -98,7 +98,7 @@ export async function importUrl(url, { folderIds = [], tags = [] } = {}) {
     return [{ status: 'imported', item }];
   }
 
-  if (contentType.startsWith('video/') || VIDEO_EXTS.has(ext)) {
+  if (contentType.startsWith('video/') || (!contentType.includes('html') && VIDEO_EXTS.has(ext))) {
     res.body?.cancel();
     const tmp = path.join(paths.files, `.tmp-${newId()}`);
     try {
@@ -124,6 +124,7 @@ export async function importUrl(url, { folderIds = [], tags = [] } = {}) {
   // Web page: read up to ~2 MB of HTML and pull OpenGraph metadata.
   const page = pageInfo((await res.text()).slice(0, 2_000_000), url);
   const common = {
+    type: 'bookmark',
     name: page.title,
     url,
     mediaUrl: url,
@@ -150,6 +151,6 @@ export async function importUrl(url, { folderIds = [], tags = [] } = {}) {
       /* fall through to a plain bookmark */
     }
   }
-  const item = await addItem({ ...common, type: 'bookmark' });
+  const item = await addItem(common);
   return [{ status: 'imported', item }];
 }

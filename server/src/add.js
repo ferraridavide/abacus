@@ -136,7 +136,8 @@ export async function addContent(input = {}) {
     if (input.async) return { job: run.job, items: [], warnings };
     await run.done;
     if (notes && run.job.skipped) warnings.push('Already in your library, so its notes were not changed');
-    const ids = [...new Set(run.job.entries.flatMap((entry) => entry.itemIds))];
+    // /api/add also accepts add-only tokens: skipped items must not disclose existing private metadata.
+    const ids = [...new Set(run.createdIds)];
     return { job: run.job, items: ids.map(getItem).filter(Boolean), warnings };
   }
 
@@ -216,7 +217,12 @@ export async function addUpload(req, { arena } = {}) {
       if (channels) {
         // blocks are read lazily from the zip, so keep it until the job finishes
         keepTmp = true;
-        const job = startArenaImport(channels, { parentId: folderId, onDone: () => fs.rmSync(tmp, { force: true }) });
+        const job = startArenaImport(channels, {
+          parentId: folderId,
+          tags: parseTags(fields.tags),
+          notes: str(fields.notes) || null,
+          onDone: () => fs.rmSync(tmp, { force: true }),
+        });
         return { job, warnings };
       }
       if (arenaMode === 'only') throw httpError(422, 'Not an Are.na export');
