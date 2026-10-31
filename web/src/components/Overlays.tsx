@@ -19,6 +19,7 @@ import {
   Search,
   SquareCheck,
   Trash2,
+  Upload,
   X,
 } from 'lucide-react';
 import { api } from '../api';
@@ -190,7 +191,7 @@ function GridMenu() {
   const s = useStore.getState();
   return (
     <>
-      <MI icon={<Download size={14} />} label="Import…" onClick={() => s.set({ importOpen: true })} />
+      <MI icon={<Upload size={14} />} label="Import…" onClick={() => s.set({ importOpen: true })} />
       <MI icon={<FolderPlus size={14} />} label="New folder" onClick={() => s.createFolder(currentFolderId(s.view) || null)} />
       <MI icon={<SquareCheck size={14} />} label="Select all" hint="⌘A" onClick={() => s.selectAll()} />
     </>

@@ -6,7 +6,6 @@ import {
   Check,
   ChevronDown,
   Columns3,
-  Download,
   Folder as FolderIcon,
   Grid2x2,
   Hash,
@@ -22,6 +21,7 @@ import {
   Star,
   Tag,
   Trash2,
+  Upload,
   X,
 } from 'lucide-react';
 import { api } from '../api';
@@ -709,7 +709,7 @@ export function Toolbar() {
         )}
 
         <button className="btn primary" onClick={() => set({ importOpen: true })}>
-          <Download size={15} /> <span>Import</span>
+          <Upload size={15} /> <span>Import</span>
         </button>
         {!compact && (
           <button

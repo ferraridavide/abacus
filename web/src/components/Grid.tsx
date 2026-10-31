@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Download, Folder as FolderIcon, ImagePlus, SearchX, Trash2 } from 'lucide-react';
+import { Folder as FolderIcon, ImagePlus, SearchX, Trash2, Upload } from 'lucide-react';
 import { useStore } from '../store';
 import type { Item } from '../types';
 import { computeLayout, type Box } from '../lib/layout';
@@ -333,7 +333,7 @@ function EmptyState() {
         another folder.
       </p>
       <button className="btn primary lg" onClick={() => set({ importOpen: true })}>
-        <Download size={16} /> Import
+        <Upload size={16} /> Import
       </button>
     </div>
   );
