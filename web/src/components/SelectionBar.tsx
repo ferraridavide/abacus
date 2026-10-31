@@ -1,4 +1,4 @@
-import { CheckCheck, FolderPlus, Info, RotateCcw, Trash2, X } from 'lucide-react';
+import { CheckCheck, FolderPlus, Images, Info, RotateCcw, Trash2, X } from 'lucide-react';
 import { useStore } from '../store';
 
 /** On narrow screens the inspector is hidden: this bar holds the selection's actions and opens its details. */
@@ -6,7 +6,7 @@ export function SelectionBar() {
   const selected = useStore((s) => s.selected);
   const total = useStore((s) => s.total);
   const trash = useStore((s) => s.view.kind === 'trash');
-  const { set, clearSelection, selectAll, batch, trashSelected } = useStore.getState();
+  const { set, clearSelection, selectAll, batch, trashSelected, openBoard } = useStore.getState();
   const ids = [...selected];
 
   return (
@@ -23,6 +23,11 @@ export function SelectionBar() {
       <button className="icon-btn" title="Details" onClick={() => set({ details: 'selection' })}>
         <Info size={18} />
       </button>
+      {ids.length > 1 && (
+        <button className="icon-btn" title="Open in moodboard" onClick={() => openBoard(ids)}>
+          <Images size={18} />
+        </button>
+      )}
       {trash ? (
         <button className="icon-btn" title="Restore" onClick={() => batch('restore', ids)}>
           <RotateCcw size={18} />

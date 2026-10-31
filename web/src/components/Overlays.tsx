@@ -11,6 +11,7 @@ import {
   FolderInput,
   FolderMinus,
   FolderPlus,
+  Images,
   Loader2,
   Palette,
   Pencil,
@@ -133,6 +134,15 @@ function ItemMenu() {
         />
       )}
       {n === 1 && <div className="menu-sep" />}
+      {n > 1 && (
+        <MI
+          icon={<Images size={14} />}
+          label={`Open ${n} in moodboard`}
+          hint="B"
+          onClick={() => s.openBoard(ids)}
+        />
+      )}
+      {n > 1 && <div className="menu-sep" />}
       <MI icon={<FolderPlus size={14} />} label="Add to folder…" onClick={() => s.set({ folderPicker: { mode: 'add', ids } })} />
       <MI icon={<FolderInput size={14} />} label="Move to folder…" onClick={() => s.set({ folderPicker: { mode: 'move', ids } })} />
       {inFolder && (
@@ -188,9 +198,21 @@ function FolderMenu({ id }: { id: string }) {
 }
 
 function GridMenu() {
+  const selected = useStore((state) => state.selected);
   const s = useStore.getState();
   return (
     <>
+      {selected.size > 1 && (
+        <>
+          <MI
+            icon={<Images size={14} />}
+            label={`Open ${selected.size} in moodboard`}
+            hint="B"
+            onClick={() => s.openBoard()}
+          />
+          <div className="menu-sep" />
+        </>
+      )}
       <MI icon={<Upload size={14} />} label="Import…" onClick={() => s.set({ importOpen: true })} />
       <MI icon={<FolderPlus size={14} />} label="New folder" onClick={() => s.createFolder(currentFolderId(s.view) || null)} />
       <MI icon={<SquareCheck size={14} />} label="Select all" hint="⌘A" onClick={() => s.selectAll()} />

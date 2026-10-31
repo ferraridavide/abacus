@@ -5,6 +5,7 @@ import { Sidebar } from './components/Sidebar';
 import { Toolbar } from './components/Toolbar';
 import { Grid } from './components/Grid';
 import { Inspector } from './components/Inspector';
+import { Board } from './components/Board';
 import { Viewer } from './components/Viewer';
 import { ImportDialog } from './components/ImportDialog';
 import { SettingsDialog } from './components/Settings';
@@ -55,11 +56,14 @@ export default function App() {
         s.set({ sidebarOpen: false });
         return;
       }
-      if (isTyping(e.target) || s.settingsOpen || s.importOpen || s.folderPicker || s.confirm || s.viewerId) return;
+      if (isTyping(e.target) || s.settingsOpen || s.importOpen || s.folderPicker || s.confirm || s.viewerId || s.board) return;
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key === 'a') {
         e.preventDefault();
         s.selectAll();
+      } else if (!mod && e.key.toLowerCase() === 'b' && s.selected.size > 1) {
+        e.preventDefault();
+        s.openBoard();
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         s.trashSelected();
@@ -188,6 +192,7 @@ export default function App() {
         </div>
       )}
 
+      <Board />
       <Viewer />
       <ImportDialog />
       <SettingsDialog />

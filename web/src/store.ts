@@ -81,6 +81,8 @@ interface State {
   details: 'selection' | 'view' | null;
   folderPicker: { mode: 'add' | 'move'; ids: string[] } | null;
   contextMenu: ContextMenuState | null;
+  /** the items shown on the moodboard canvas */
+  board: { ids: string[] } | null;
   confirm: ConfirmState | null;
   renamingFolderId: string | null;
   jobs: Job[];
@@ -104,6 +106,8 @@ interface State {
   setSelection: (ids: string[]) => void;
   selectAll: () => Promise<void>;
   clearSelection: () => void;
+  /** Open the moodboard; defaults to the current selection, in grid order. */
+  openBoard: (ids?: string[]) => void;
 
   updateItem: (id: string, patch: ItemPatch) => Promise<void>;
   batch: (action: BatchAction, ids: string[], extra?: { tags?: string[]; folderId?: string; fromFolderId?: string }) => Promise<void>;
@@ -177,6 +181,7 @@ export const useStore = create<State>()(
       details: null,
       folderPicker: null,
       contextMenu: null,
+      board: null,
       confirm: null,
       renamingFolderId: null,
       jobs: [],
@@ -287,6 +292,16 @@ export const useStore = create<State>()(
         set({ selected: new Set(ids) });
       },
       clearSelection: () => set({ selected: new Set(), anchor: null }),
+
+      openBoard: (ids) => {
+        const list = ids ?? [...get().selected];
+        if (!list.length) return;
+        const order = new Map(get().items.map((item, i) => [item.id, i]));
+        const ordered = [...list].sort(
+          (a, b) => (order.get(a) ?? Number.MAX_SAFE_INTEGER) - (order.get(b) ?? Number.MAX_SAFE_INTEGER)
+        );
+        set({ board: { ids: ordered }, contextMenu: null, viewerId: null, details: null, sidebarOpen: false });
+      },
 
       updateItem: async (id, patch) => {
         set({ items: get().items.map((i) => (i.id === id ? { ...i, ...patch } : i)) });

@@ -7,6 +7,7 @@ import {
   Folder as FolderIcon,
   FolderPlus,
   Image as ImageIcon,
+  Images,
   Layers,
   Loader2,
   Maximize2,
@@ -394,7 +395,7 @@ function EmbeddingSection({ item }: { item: Item }) {
 }
 
 function MultiInspector({ items, ids }: { items: Item[]; ids: string[] }) {
-  const { batch, set, toast } = useStore.getState();
+  const { batch, set, toast, openBoard } = useStore.getState();
   const total = items.reduce((s, i) => s + i.size, 0);
   const common = items.reduce<string[]>(
     (acc, it, idx) => (idx === 0 ? it.tags : acc.filter((t) => it.tags.includes(t))),
@@ -433,6 +434,9 @@ function MultiInspector({ items, ids }: { items: Item[]; ids: string[] }) {
       </Section>
 
       <div className="insp-actions column">
+        <button className="btn" onClick={() => openBoard(ids)}>
+          <Images size={14} /> Open moodboard
+        </button>
         <button className="btn" onClick={() => set({ folderPicker: { mode: 'add', ids } })}>
           <FolderPlus size={14} /> Add to folder…
         </button>
@@ -540,6 +544,7 @@ function EmptyInspector() {
         </div>
         {[
           ['Space', 'Preview'],
+          ['B', 'Moodboard'],
           ['⌘A', 'Select all'],
           ['⌫', 'Move to trash'],
           ['⌘V', 'Paste links or images'],
