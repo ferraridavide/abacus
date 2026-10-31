@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Abacus",
-  "version": "1.1.0",
-  "description": "Save pages, links, images, and notes to your Abacus library.",
+  "version": "1.2.0",
+  "description": "Save pages, links, images, screenshots, and notes to your Abacus library.",
   "permissions": [
     "activeTab",
     "contextMenus",
     "storage",
     "alarms",
-    "notifications"
+    "notifications",
+    "scripting"
   ],
   "background": {
     "service_worker": "background.js",
@@ -34,6 +35,18 @@
   "commands": {
     "save-page": {
       "description": "Save to Abacus"
+    },
+    "save-all-images": {
+      "description": "Save all images on this page to Abacus"
+    },
+    "screenshot-area": {
+      "description": "Screenshot an area to Abacus"
+    },
+    "screenshot-element": {
+      "description": "Screenshot an element to Abacus"
+    },
+    "screenshot-full": {
+      "description": "Screenshot the full page to Abacus"
     }
   },
   "optional_host_permissions": [

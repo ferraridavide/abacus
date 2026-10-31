@@ -72,12 +72,17 @@ export async function fetchPageInfo(url) {
   }
 }
 
-/** Import an arbitrary URL: a direct image/video, or a bookmark with an optional preview image. */
-export async function importUrl(url, { folderIds = [], tags = [] } = {}) {
+/**
+ * Import an arbitrary URL: a direct image/video, or a bookmark with an optional preview image.
+ * `pageUrl` is the page the link was found on: it is sent as the Referer (hotlink-protected images) and becomes
+ * the `url` of a directly imported image or video, while `mediaUrl` stays the file's address.
+ */
+export async function importUrl(url, { folderIds = [], tags = [], pageUrl } = {}) {
   const existing = findByMediaUrl(url);
   if (existing) return [{ status: 'skipped', id: existing.id }];
 
-  const res = await fetchWithTimeout(url, { headers: { accept: 'text/html,image/*,video/*,*/*' } }, 30000);
+  const referer = pageUrl ? { referer: pageUrl } : {};
+  const res = await fetchWithTimeout(url, { headers: { accept: 'text/html,image/*,video/*,*/*', ...referer } }, 30000);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const contentType = (res.headers.get('content-type') || '').toLowerCase();
   const ext = extFromMime(contentType) || extFromUrl(url);
@@ -89,7 +94,7 @@ export async function importUrl(url, { folderIds = [], tags = [] } = {}) {
       buffer,
       ext,
       mime: contentType,
-      url,
+      url: pageUrl || url,
       mediaUrl: url,
       source: 'web',
       folderIds,
@@ -102,14 +107,14 @@ export async function importUrl(url, { folderIds = [], tags = [] } = {}) {
     res.body?.cancel();
     const tmp = path.join(paths.files, `.tmp-${newId()}`);
     try {
-      await downloadToFile(url, tmp);
+      await downloadToFile(url, tmp, pageUrl ? { headers: referer } : undefined);
       const item = await addItem({
         name: nameFromUrl(url),
         type: 'video',
         tempFile: tmp,
         ext: ext || 'mp4',
         mime: contentType || 'video/mp4',
-        url,
+        url: pageUrl || url,
         mediaUrl: url,
         source: 'web',
         folderIds,

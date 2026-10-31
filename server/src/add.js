@@ -121,15 +121,25 @@ export async function addContent(input = {}) {
   const name = str(input.name);
   const url = str(input.url);
   const urls = (Array.isArray(input.urls) ? input.urls : input.urls ? [input.urls] : []).map(str).filter(Boolean);
-  for (const u of [url, ...urls].filter(Boolean)) requireHttpUrl(u);
+  const pageUrl = str(input.pageUrl);
+  const fallbackUrls = (Array.isArray(input.fallbackUrls) ? input.fallbackUrls : input.fallbackUrls ? [input.fallbackUrls] : [])
+    .map(str)
+    .filter(Boolean);
+  for (const u of [url, ...urls, pageUrl, ...fallbackUrls].filter(Boolean)) requireHttpUrl(u);
 
   const targets = parseTargets([url, ...urls, text].filter(Boolean).join('\n'));
+  // Fallbacks only make sense for one link: with several, there's no telling which one they stand in for.
+  if (targets.length === 1 && targets[0].kind === 'url') {
+    const fallbacks = fallbackUrls.filter((u) => u !== targets[0].url);
+    if (fallbacks.length) targets[0].fallbacks = fallbacks;
+  }
 
   if (targets.length) {
     const folderId = resolveFolder(input, warnings);
     const run = startTargets(targets, {
       folderIds: folderId ? [folderId] : [],
       tags,
+      pageUrl: pageUrl || undefined,
       // `name` titles a single link; for several links each item keeps the title read from its page.
       onDone: (job, createdIds) => applyDetails(createdIds, { name, notes, single: targets.length === 1 }),
     });
@@ -230,13 +240,16 @@ export async function addUpload(req, { arena } = {}) {
 
     const url = str(fields.url);
     if (url) requireHttpUrl(url);
+    // The page a screenshot was taken of. Not a mediaUrl: it must not make a later import of that page a duplicate.
+    const pageUrl = str(fields.pageUrl);
+    if (pageUrl) requireHttpUrl(pageUrl);
     const base = path.basename(original || 'upload', path.extname(original || ''));
     const isVideo = VIDEO_EXTS.has(ext) || (mime || '').startsWith('video/');
     const common = {
       name: str(fields.name) || base,
       ext,
       mime,
-      url: url || null,
+      url: url || pageUrl || null,
       mediaUrl: url || null,
       source: SOURCES.has(fields.source) ? fields.source : 'upload',
       folderIds: folderId ? [folderId] : [],

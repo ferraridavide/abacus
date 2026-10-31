@@ -33,6 +33,8 @@ export type ServicePatch = { enabled?: boolean; values?: Record<string, string> 
  * keeps the library in the browser, is another (backends/demo). main.tsx picks one and provides it before rendering.
  */
 export interface Backend {
+  /** An opaque token that changes whenever the library does; compare it for inequality only. */
+  revision(): Promise<{ revision: string }>;
   bootstrap(): Promise<{ stats: Stats; folders: Folder[]; tags: TagCount[] }>;
   items(params: Record<string, string>): Promise<{
     items: Item[];

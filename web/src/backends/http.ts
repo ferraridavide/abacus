@@ -28,6 +28,7 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
 
 /** The Abacus server's HTTP API. */
 export const httpBackend: Backend = {
+  revision: () => request<{ revision: string }>('GET', '/api/revision'),
   bootstrap: () => request<{ stats: Stats; folders: Folder[]; tags: TagCount[] }>('GET', '/api/bootstrap'),
   items: (params: Record<string, string>) =>
     request<{ items: Item[]; total: number; offset: number; ranking?: 'similarity'; scores?: Record<string, SearchScore> }>(

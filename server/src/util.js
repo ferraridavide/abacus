@@ -61,9 +61,9 @@ export async function downloadBuffer(url, maxBytes = 100 * 1024 * 1024) {
   return { buffer: buf, contentType: res.headers.get('content-type') || '' };
 }
 
-/** Stream a URL to disk (for videos). Returns bytes written. */
-export async function downloadToFile(url, dest) {
-  const res = await fetchWithTimeout(url, {}, 10 * 60 * 1000);
+/** Stream a URL to disk (for videos). Returns bytes written. `headers` are extra request headers (e.g. Referer). */
+export async function downloadToFile(url, dest, { headers } = {}) {
+  const res = await fetchWithTimeout(url, headers ? { headers } : {}, 10 * 60 * 1000);
   if (!res.ok || !res.body) throw new Error(`HTTP ${res.status} downloading ${url}`);
   let written = 0;
   const limiter = new Transform({

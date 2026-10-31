@@ -89,6 +89,8 @@ Imports links, or stores a note when there are none.
 | `folderId`  | string             | A folder id. If the folder no longer exists, `folder` is used instead, or no folder (with a warning). |
 | `parentId`  | string             | The folder that `folder` is relative to.                                                     |
 | `source`    | string             | The source of a note: `api` (default), `web`, `upload`, `x`, `social`, or `arena`.           |
+| `pageUrl`   | string             | The page the link was found on (`http(s)`). See [Saving media from a page](#saving-media-from-a-page). |
+| `fallbackUrls` | string[] or string | Other links to try, in order, if importing the link fails. Used only when exactly one link is imported. |
 | `async`     | boolean            | Answer as soon as the import starts, with a job to follow.                                   |
 | `linksOnly` | boolean            | Answer `400` when there are no links, instead of creating a note.                            |
 
@@ -97,6 +99,26 @@ the provider, direct media URLs are downloaded, and other pages are saved as boo
 
 Adding a link that is already in the library doesn't create a duplicate, and doesn't change the existing item:
 its name and notes stay as they are. The response counts it as `skipped`.
+
+### Saving media from a page
+
+A browser extension that saves an image can send where it found it:
+
+```bash
+curl -sS http://my-server:8090/api/add \
+  -H "Authorization: Bearer $API_TOKEN" -H "Content-Type: application/json" \
+  -d '{ "url": "https://cdn.example.com/photo-large.jpg",
+        "fallbackUrls": ["https://cdn.example.com/photo.jpg"],
+        "pageUrl": "https://example.com/gallery/42" }'
+```
+
+- `pageUrl` is sent as the `Referer` header when the link (and a video, if it is one) is downloaded, so images that
+  refuse hotlinking can be saved. When the link is a direct image or video, the item's `url` (its source page) is
+  `pageUrl`, while `mediaUrl` stays the file's address and is what de-duplication uses. For web pages and bookmarks
+  `pageUrl` changes nothing but the `Referer`. An invalid `pageUrl` answers `400`.
+- `fallbackUrls` are tried in order when importing `url` fails, for example the plain `src` of an image after a
+  high-resolution guess; the first that works is saved. If they all fail, the error is the one for `url`. A `url`
+  that is already in the library is `skipped` without trying them. Ignored when more than one link is sent.
 
 ### Response
 
@@ -138,7 +160,8 @@ Send `multipart/form-data` with one `file` part:
 | `file`     | The file.                                                                             |
 | `folder`, `folderId`, `tags`, `notes` | As for JSON.                                               |
 | `name`     | The item's name. Defaults to the file name without its extension.                     |
-| `url`      | The page the file came from (http/https).                                             |
+| `url`      | The page the file came from (http/https). Also its `mediaUrl`, for de-duplication.    |
+| `pageUrl`  | The page the file was captured from, such as a screenshot (http/https). Stored as the item's `url` when `url` is not sent; the item gets no `mediaUrl`, so importing that page later is not a duplicate. |
 | `width`, `height`, `duration` | For videos, when the client already knows them.                    |
 | `thumb`    | A poster image for a video.                                                           |
 | `arena`    | `auto` (default), `only`, or `off`. See below.                                        |

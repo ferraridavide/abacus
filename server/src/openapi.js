@@ -123,6 +123,13 @@ export function createOpenApi({ authRequired = false } = {}) {
         description: 'Jobs are kept in memory, limited to the most recent 50. A restart or eviction makes a job unavailable.',
         responses: { 404: error('Job not found.') },
       }) },
+      '/api/revision': { get: operation('revision', 'Library', 'Read the library change token', ref('Revision'), {
+        description: 'Opaque token that changes whenever the library is modified (or the server restarts). ' +
+          'The web app polls it to refresh after items are added from outside. Compare for inequality only.',
+        responses: { 200: { ...response('Current token.', ref('Revision')), headers: {
+          'Cache-Control': { schema: { type: 'string', enum: ['no-store'] }, description: 'The token must not be cached.' },
+        } } },
+      }) },
       '/api/items': { get: operation('listItems', 'Library', 'Search and list items', ref('ItemPage'), {
         parameters: [...itemParameters,
           query('limit', { type: 'integer', minimum: 1, maximum: 1000, default: 200 }, 'Page size, clamped to 1–1000.'),

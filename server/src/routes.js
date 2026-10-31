@@ -4,6 +4,7 @@ import { getJob } from './jobs.js';
 import { activeProviders, listProviderSettings, testProvider, updateProvider } from './providers/index.js';
 import * as embeddings from './embeddings.js';
 import { createApiKey, deleteApiKey, listApiKeys } from './api-keys.js';
+import { getRevision } from './revision.js';
 
 const notFound = (reply) => reply.code(404).send({ error: 'Not found' });
 
@@ -37,6 +38,12 @@ export async function routes(app) {
   app.get('/api/autocomplete', async (req, reply) => {
     reply.header('cache-control', 'no-store');
     return { folders: lib.listFolderTree(), tags: lib.listTagNames() };
+  });
+
+  // Changes whenever the library does, so the web app can refresh itself after an outside add (web login only).
+  app.get('/api/revision', async (req, reply) => {
+    reply.header('cache-control', 'no-store');
+    return { revision: getRevision() };
   });
 
   // ---------- items ----------

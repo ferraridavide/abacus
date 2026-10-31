@@ -93,7 +93,7 @@
                 <div class="shortcut-row">
                   <label for="keyboardShortcutEnabled">
                     <span>Keyboard shortcut</span>
-                    <small id="shortcut-hint">Save the current page.</small>
+                    <small id="shortcut-hint">Save the current page. Assign keys for the screenshot and batch shortcuts at <code>chrome://extensions/shortcuts</code>.</small>
                   </label>
                   <div class="shortcut-controls">
                     <button id="change-shortcut" type="button" class="shortcut-editor" aria-label="Change keyboard shortcut in Chrome" title="Set or change keys in Chrome">
@@ -105,6 +105,55 @@
                 </div>
                 <p id="shortcut-status" class="status" role="status" hidden></p>
               </div>
+            </div>
+          </section>
+          <section aria-labelledby="page-tools-title">
+            <div class="section-head">
+              <h2 id="page-tools-title">Page tools</h2>
+              <p class="hint">Save images straight from the page. Drag and Alt + right-click need access to websites, which Chrome asks you to allow.</p>
+            </div>
+            <div class="form-card quick-save-card">
+              <div class="quick-save-item">
+                <label class="toggle-row">
+                  <span>
+                    <span>Drag to save</span>
+                    <small id="drag-hint">Dragging an image shows a dock with your folders. Drop it there to save. Dragging elsewhere works as usual.</small>
+                  </span>
+                  <input id="dragToSave" class="switch" type="checkbox" role="switch" aria-describedby="drag-hint" disabled />
+                </label>
+              </div>
+              <div class="quick-save-item">
+                <label class="toggle-row">
+                  <span>
+                    <span>Alt + right-click</span>
+                    <small id="alt-hint">Save the image under the pointer, even when the site covers it or blocks the context menu.</small>
+                  </span>
+                  <input id="altClickSave" class="switch" type="checkbox" role="switch" aria-describedby="alt-hint" disabled />
+                </label>
+              </div>
+              <div class="quick-save-item">
+                <label class="toggle-row">
+                  <span>
+                    <span>Find high-resolution versions</span>
+                    <small id="hd-hint">Look for the full-size file behind thumbnails and previews. The image as shown is the fallback.</small>
+                  </span>
+                  <input id="hdEnabled" class="switch" type="checkbox" role="switch" aria-describedby="hd-hint" disabled />
+                </label>
+              </div>
+              <div class="quick-save-item">
+                <label class="toggle-row">
+                  <span>
+                    <span>Screenshot format</span>
+                    <small id="format-hint">Used for area, element, full page, and visible area captures.</small>
+                  </span>
+                  <select id="screenshotFormat" aria-describedby="format-hint" disabled>
+                    <option value="png">PNG</option>
+                    <option value="jpeg">JPEG</option>
+                    <option value="webp">WebP</option>
+                  </select>
+                </label>
+              </div>
+              <div class="quick-save-item"><p id="page-tools-status" class="status" role="status" hidden></p></div>
             </div>
           </section>
           <div class="actions">

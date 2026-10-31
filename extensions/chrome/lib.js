@@ -3,6 +3,8 @@
  */
 
 const STORAGE_KEY = 'config';
+export const SCREENSHOT_FORMATS = ['png', 'jpeg', 'webp'];
+export const MAX_RECENT_FOLDERS = 5;
 
 // How often, and for how long, to follow an import job (video downloads can take minutes).
 const POLL_MS = 1500;
@@ -21,6 +23,14 @@ export async function getConfig() {
     tags: config.tags || '',
     contextMenuEnabled: (config.contextMenuEnabled ?? config.pageContextMenuEnabled) === true,
     keyboardShortcutEnabled: config.keyboardShortcutEnabled === true,
+    // Page tools need access to every site, which Chrome only grants through a prompt, so they start off.
+    dragToSave: config.dragToSave === true,
+    altClickSave: config.altClickSave === true,
+    hdEnabled: config.hdEnabled !== false,
+    screenshotFormat: SCREENSHOT_FORMATS.includes(config.screenshotFormat) ? config.screenshotFormat : 'png',
+    recentFolders: Array.isArray(config.recentFolders)
+      ? config.recentFolders.filter((f) => typeof f === 'string' && f.trim()).slice(0, MAX_RECENT_FOLDERS)
+      : [],
   };
 }
 
@@ -117,6 +127,62 @@ export async function addToAbacus(payload, { config, onProgress, onPending } = {
     job = await apiFetch(config, '/api/jobs/' + job.id);
   }
   return resultFromJob(data, job);
+}
+
+/**
+ * Add one file (a screenshot, or an image that only the page can read) with POST /api/add as multipart.
+ * `fields` are plain strings (`tags` may be an array); empty ones are left out. Resolves like any other add.
+ */
+export async function uploadToAbacus(blob, fields, config, fileName = 'upload') {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(fields || {})) {
+    const text = Array.isArray(value) ? value.join(',') : value;
+    if (text !== undefined && text !== null && text !== '') form.append(key, String(text));
+  }
+  form.append('file', blob, fileName);
+  return apiFetch(config, '/api/add', { method: 'POST', body: form });
+}
+
+/**
+ * Follow a job for up to `timeoutMs`. Resolves with the result when it finishes in time and with null when it is
+ * still running, so the caller can hand it to the background tracker. Rejects with the server's reason on failure.
+ */
+export async function waitForJob(config, data, { timeoutMs = 8000, intervalMs = 500 } = {}) {
+  let job = data.job;
+  if (!job) return data;
+  const started = Date.now();
+  while (job.status !== 'done') {
+    if (Date.now() - started > timeoutMs) return null;
+    await sleep(intervalMs);
+    job = await apiFetch(config, '/api/jobs/' + job.id);
+  }
+  return resultFromJob(data, job);
+}
+
+/** Put a folder first in the short "recent folders" list that the drag dock offers. */
+export async function rememberFolder(folder) {
+  const name = String(folder || '').trim();
+  if (!name) return;
+  const { recentFolders } = await getConfig();
+  if (recentFolders[0]?.toLowerCase() === name.toLowerCase()) return;
+  const next = [name, ...recentFolders.filter((f) => f.toLowerCase() !== name.toLowerCase())].slice(0, MAX_RECENT_FOLDERS);
+  await setConfig({ recentFolders: next });
+}
+
+/**
+ * The /api/add body for an image or video found on a page. `candidates` come best first: the server tries the first
+ * and falls back to the others, and sends the page as the Referer so hotlink-protected files still download.
+ */
+export function mediaPayload(media, { folder, tags } = {}) {
+  const urls = (media.candidates || []).filter((u) => /^https?:\/\//i.test(u));
+  const [url, ...rest] = urls;
+  return {
+    url,
+    ...(rest.length ? { fallbackUrls: rest.slice(0, 3) } : {}),
+    ...(/^https?:\/\//i.test(media.pageUrl || '') ? { pageUrl: media.pageUrl } : {}),
+    folder,
+    tags,
+  };
 }
 
 export function parseTagList(value) {

@@ -115,6 +115,48 @@ async function refreshShortcut() {
   }
 }
 
+const ALL_SITES = ['http://*/*', 'https://*/*'];
+
+function pageToolsStatus(text, kind = 'error') {
+  const status = $('page-tools-status');
+  status.textContent = text;
+  status.className = `status ${kind}`;
+  status.hidden = !text;
+}
+
+/**
+ * Drag and Alt + right-click run inside pages, so Chrome must grant access to websites. The request has to be the
+ * first await after the click. Turning a tool on without access would do nothing, so the switch goes back off.
+ */
+function bindPageTool(id) {
+  $(id).addEventListener('change', async (event) => {
+    const toggle = event.target;
+    pageToolsStatus('');
+    try {
+      if (toggle.checked && !(await chrome.permissions.request({ origins: ALL_SITES }))) {
+        toggle.checked = false;
+        return pageToolsStatus('Allow access to websites in Chrome to use this tool.');
+      }
+      await setConfig({ [id]: toggle.checked });
+    } catch (err) {
+      toggle.checked = !toggle.checked;
+      pageToolsStatus(`Could not save preference: ${err.message}`);
+    }
+  });
+}
+
+bindPageTool('dragToSave');
+bindPageTool('altClickSave');
+bindPreference('hdEnabled', 'page-tools-status');
+$('screenshotFormat').addEventListener('change', async (event) => {
+  try {
+    await setConfig({ screenshotFormat: event.target.value });
+    pageToolsStatus('');
+  } catch (err) {
+    pageToolsStatus(`Could not save preference: ${err.message}`);
+  }
+});
+
 bindPreference('contextMenuEnabled', 'context-menu-status');
 bindPreference('keyboardShortcutEnabled', 'shortcut-status');
 $('change-shortcut').addEventListener('click', async () => {
@@ -133,9 +175,17 @@ refreshShortcut();
 (async () => {
   const config = await getConfig();
   for (const field of FIELDS) $(field).value = config[field] || '';
-  for (const field of ['contextMenuEnabled', 'keyboardShortcutEnabled']) {
+  for (const field of ['contextMenuEnabled', 'keyboardShortcutEnabled', 'hdEnabled']) {
     $(field).checked = config[field];
     $(field).disabled = false;
   }
+  // The tools only work while Chrome still grants access to websites; show them off if it was revoked.
+  const granted = await chrome.permissions.contains({ origins: ALL_SITES }).catch(() => false);
+  for (const field of ['dragToSave', 'altClickSave']) {
+    $(field).checked = config[field] && granted;
+    $(field).disabled = false;
+  }
+  $('screenshotFormat').value = config.screenshotFormat;
+  $('screenshotFormat').disabled = false;
   if (!config.serverUrl) setStatus('Not configured', 'error', 'Enter your server address and API token to get started.');
 })();

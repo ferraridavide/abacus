@@ -15,6 +15,7 @@ import {
   parseColor,
 } from './color.js';
 import { kickEmbeddings, similarityTo, textChanged } from './embeddings.js';
+import { bumpRevision } from './revision.js';
 
 const ITEM_COLUMNS = `
   i.*,
@@ -175,6 +176,7 @@ export async function addItem(input) {
     for (const fid of input.folderIds || []) linkFolder(id, fid, now);
     for (const tag of input.tags || []) linkTag(id, tag);
   });
+  bumpRevision();
   kickEmbeddings();
   return getItem(id);
 }
@@ -551,6 +553,7 @@ export function updateItem(id, patch) {
       for (const fid of patch.folders) linkFolder(id, fid, Date.now());
     }
   });
+  bumpRevision();
   if (patch.name !== undefined || patch.description !== undefined || patch.notes !== undefined || Array.isArray(patch.tags)) textChanged([id]);
   return getItem(id);
 }
@@ -601,6 +604,7 @@ export function batch({ ids = [], action, tags = [], folderId, fromFolderId }) {
       }
     }
   });
+  bumpRevision();
   for (const r of removedFiles) removeItemFiles(r);
   if (action === 'restore') kickEmbeddings();
   if (action === 'addTags' || action === 'removeTags') textChanged(ids);
@@ -653,6 +657,7 @@ export function createFolder({ name, parentId = null, color = null }) {
     sort,
     Date.now()
   );
+  bumpRevision();
   return listFolders().find((f) => f.id === id);
 }
 
@@ -684,11 +689,13 @@ export function updateFolder(id, patch) {
     args.push(Number(patch.sort));
   }
   if (sets.length) db.prepare(`UPDATE folders SET ${sets.join(', ')} WHERE id = ?`).run(...args, id);
+  bumpRevision();
   return listFolders().find((f) => f.id === id);
 }
 
 export function deleteFolder(id) {
   db.prepare('DELETE FROM folders WHERE id = ?').run(id);
+  bumpRevision();
   return { ok: true };
 }
 

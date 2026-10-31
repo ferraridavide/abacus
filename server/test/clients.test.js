@@ -64,6 +64,46 @@ describe('Chrome extension helpers', () => {
     assert.equal(lib.summarize(data), '1 already in your library');
   });
 
+  test('media payloads put the best candidate first and keep the page for Referer', () => {
+    const payload = lib.mediaPayload(
+      { candidates: ['https://a.example/orig.jpg', 'https://a.example/small.jpg', 'data:x'], pageUrl: 'https://a.example/post' },
+      { folder: 'Inbox', tags: ['t'] }
+    );
+    assert.deepEqual(payload, {
+      url: 'https://a.example/orig.jpg',
+      fallbackUrls: ['https://a.example/small.jpg'],
+      pageUrl: 'https://a.example/post',
+      folder: 'Inbox',
+      tags: ['t'],
+    });
+    assert.equal('fallbackUrls' in lib.mediaPayload({ candidates: ['https://a.example/x.jpg'] }), false);
+  });
+
+  test('uploads a file with its page and waits briefly for a job', async () => {
+    const blob = new Blob([Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')], { type: 'image/png' });
+    const data = await lib.uploadToAbacus(blob, { name: 'Shot', pageUrl: page('Shot source'), tags: ['a', 'b'], empty: '' }, config(), 'shot.png');
+    assert.equal(data.created, 1);
+    const item = data.items[0];
+    assert.equal(item.url, page('Shot source'));
+    assert.equal(item.mediaUrl, null);
+    assert.deepEqual(item.tags, ['a', 'b']);
+
+    const added = await lib.submitToAbacus({ url: page('Waited') }, config());
+    const done = await lib.waitForJob(config(), added, { timeoutMs: 10000, intervalMs: 50 });
+    assert.equal(done.created, 1);
+  });
+
+  test('waitForJob gives up quietly on a job that is still running, so it can be tracked in the background', async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async () => Response.json({ id: 'slow', status: 'running', imported: 0, skipped: 0, failed: 0, entries: [] });
+    try {
+      const pending = { job: { id: 'slow', status: 'running' } };
+      assert.equal(await lib.waitForJob(config(), pending, { timeoutMs: 120, intervalMs: 30 }), null);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
   test('folder paths list nested folders in full', () => {
     const folders = [
       { id: 'a', name: 'Design', parentId: null },

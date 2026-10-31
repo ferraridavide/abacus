@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Abacus — Save images</title>
+    <link rel="stylesheet" href="shared.css" />
+    <link rel="stylesheet" href="batch.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <span class="logo" role="img" aria-label="Abacus">🧮</span>
+      <div class="bar-title">
+        <h1>Save images to Abacus</h1>
+        <p id="source" class="hint"></p>
+      </div>
+    </header>
+    <p id="notice" class="notice" role="status" hidden></p>
+    <main id="workspace" hidden>
+      <aside class="panel">
+        <section>
+          <h2>Filter</h2>
+          <div class="row">
+            <label><span>Min width</span><input id="minWidth" type="number" min="0" step="10" inputmode="numeric" /></label>
+            <label><span>Min height</span><input id="minHeight" type="number" min="0" step="10" inputmode="numeric" /></label>
+          </div>
+          <fieldset id="formats"><legend>Format</legend></fieldset>
+        </section>
+        <section>
+          <h2>Save into</h2>
+          <label><span>Folder</span><input id="folder" type="text" placeholder="Library (no folder)" /></label>
+          <label><span>Tags</span><input id="tags" type="text" placeholder="inspiration, design" /></label>
+        </section>
+        <section class="actions">
+          <div class="row">
+            <button id="select-all" type="button" class="btn">Select all</button>
+            <button id="select-none" type="button" class="btn">Select none</button>
+          </div>
+          <button id="save" type="button" class="btn primary" disabled>Save</button>
+          <progress id="progress" max="1" value="0" hidden></progress>
+          <p id="result" class="status" role="status" hidden></p>
+        </section>
+      </aside>
+      <section class="results">
+        <p id="count" class="hint"></p>
+        <div id="grid" class="grid"></div>
+      </section>
+    </main>
+    <script type="module" src="batch.js"></script>
+    <script type="module" src="autocomplete-init.js"></script>
+  </body>
+</html>

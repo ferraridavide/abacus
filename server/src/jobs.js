@@ -106,13 +106,31 @@ async function importLink(url, opts) {
  * Start a tracked import for already-parsed targets. `onDone(job, createdIds)` runs once every target has been
  * processed, also when the caller doesn't wait for the job.
  */
-export function startTargets(targets, { folderIds = [], tags = [], onDone } = {}) {
-  const run = createJob(
-    targets,
-    (t) => (t.kind === 'x' ? importTweet(t.id, { folderIds, tags }) : importLink(t.url, { folderIds, tags })),
-    { onDone: () => onDone?.(run.job, run.createdIds) }
-  );
+export function startTargets(targets, { folderIds = [], tags = [], pageUrl, onDone } = {}) {
+  const run = createJob(targets, (t) => (t.kind === 'x' ? importTweet(t.id, { folderIds, tags }) : importWithFallbacks(t, { folderIds, tags, pageUrl })), {
+    onDone: () => onDone?.(run.job, run.createdIds),
+  });
   return run;
+}
+
+/**
+ * Import a link target. When it fails, its `fallbacks` (other URLs for the same thing, such as the plain `src` of a
+ * high-resolution image) are tried in order; if none works either, the main URL's error is the one reported.
+ * A main URL that is already in the library is skipped without trying them.
+ */
+async function importWithFallbacks(t, opts) {
+  try {
+    return await importLink(t.url, opts);
+  } catch (err) {
+    for (const url of t.fallbacks || []) {
+      try {
+        return await importLink(url, opts);
+      } catch {
+        /* try the next one */
+      }
+    }
+    throw err;
+  }
 }
 
 /** Import an Are.na export; each channel becomes a folder (under `parentId` if given). */

@@ -538,3 +538,56 @@ async function pollJob(id: string) {
     }
   }
 }
+
+const LIVE_SYNC_MS = 2000;
+
+/**
+ * Keep the library fresh when something else adds to it (the browser extension, scripts): watch the server's change
+ * token while the tab is visible and refresh when it changes. Returns a function that stops watching.
+ */
+export function startLiveSync(): () => void {
+  // the demo library lives in this tab, so nothing can change behind its back
+  if (import.meta.env.MODE === 'demo' || import.meta.env.VITE_DEMO === 'true') return () => {};
+  let baseline: string | null = null;
+  let busy = false;
+  let stopped = false;
+
+  const check = async () => {
+    if (busy || stopped) return;
+    busy = true;
+    try {
+      const { revision } = await api.revision();
+      if (stopped) return;
+      if (baseline === null) {
+        baseline = revision;
+        return;
+      }
+      if (revision === baseline) return;
+      baseline = revision;
+      const before = useStore.getState().stats.all;
+      await useStore.getState().refresh();
+      const { stats, jobs, toast } = useStore.getState();
+      const added = stats.all - before;
+      // a running local import or upload announces itself, so only outside additions get a toast
+      if (added > 0 && !jobs.some((j) => j.status !== 'done')) toast(`${added} new item${added > 1 ? 's' : ''} added`, 'success');
+    } catch {
+      /* offline or restarting: try again on the next tick, without nagging */
+    } finally {
+      busy = false;
+    }
+  };
+  const checkIfVisible = () => {
+    if (document.visibilityState === 'visible') void check();
+  };
+
+  void check();
+  const timer = setInterval(checkIfVisible, LIVE_SYNC_MS);
+  document.addEventListener('visibilitychange', checkIfVisible);
+  window.addEventListener('focus', checkIfVisible);
+  return () => {
+    stopped = true;
+    clearInterval(timer);
+    document.removeEventListener('visibilitychange', checkIfVisible);
+    window.removeEventListener('focus', checkIfVisible);
+  };
+}

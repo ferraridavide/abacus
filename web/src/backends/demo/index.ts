@@ -294,6 +294,8 @@ export async function createDemoBackend() {
   // ---------- the backend ----------
 
   const backend: Backend = {
+    // the demo library only changes through this tab, so there is never anything to catch up on
+    revision: () => Promise.resolve({ revision: 'demo' }),
     async bootstrap() {
       const live = [...items.values()].filter((r) => r.deletedAt === null);
       const tags = new Map<string, TagCount>();

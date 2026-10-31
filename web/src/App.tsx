@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
-import { useStore, currentFolderId } from './store';
+import { useStore, currentFolderId, startLiveSync } from './store';
 import { Sidebar } from './components/Sidebar';
 import { Toolbar } from './components/Toolbar';
 import { Grid } from './components/Grid';
@@ -32,6 +32,9 @@ export default function App() {
   useEffect(() => {
     useStore.getState().refresh();
   }, []);
+
+  // pick up items added from outside (the browser extension, scripts)
+  useEffect(() => startLiveSync(), []);
 
   // the selection's details sheet goes away with the selection
   useEffect(() => {

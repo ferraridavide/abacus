@@ -36,3 +36,9 @@ label:has([aria-invalid="true"]) > span { color: var(--danger); }
 #save[data-state="saved"]::before { content: '✓'; }
 #save[data-state="warning"]::before { content: '!'; }
 @media (prefers-reduced-motion: reduce) { #save::before { animation: none !important; } }
+
+.tools { display: grid; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.tools h2 { font-size: 12px; color: var(--text-dim); font-weight: 500; }
+.tool-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.tool-grid .btn { padding: 0 6px; font-size: 12px; }
+.btn.wide { width: 100%; }

@@ -4,6 +4,9 @@ import { setImmediate } from 'node:timers/promises';
 import { readFile } from 'node:fs/promises';
 import { getConfig, setConfig } from '../../extensions/chrome/lib.js';
 
+// Save, link, image, selection, batch, and the screenshot parent with its four modes.
+const MENU_COUNT = 10;
+
 test('context menus and shortcuts are opt-in and retain preferences across startup', async (t) => {
   const previous = { chrome: globalThis.chrome, fetch: globalThis.fetch };
   t.after(() => Object.assign(globalThis, previous));
@@ -69,7 +72,7 @@ test('context menus and shortcuts are opt-in and retain preferences across start
   assert.equal((await getConfig()).contextMenuEnabled, true);
   delete stored.config.pageContextMenuEnabled;
   await setConfig({ contextMenuEnabled: true });
-  await waitForMenus(4);
+  await waitForMenus(MENU_COUNT);
   assert.equal(menus.get('abacus-page').title, 'Save to Abacus');
 
   await setConfig({ contextMenuEnabled: false });
@@ -91,9 +94,9 @@ test('context menus and shortcuts are opt-in and retain preferences across start
   listeners.startup();
   await setConfig({ contextMenuEnabled: false });
   await setConfig({ contextMenuEnabled: true });
-  await waitForMenus(4);
+  await waitForMenus(MENU_COUNT);
   for (let i = 0; i < 10; i++) await setImmediate();
-  assert.equal(menus.size, 4);
+  assert.equal(menus.size, MENU_COUNT);
   assert.equal(menus.get('abacus-page').title, 'Save to Abacus');
   assert.deepEqual(errors, []);
 
