@@ -14,6 +14,7 @@ import {
   LayoutGrid,
   ListFilter,
   Menu,
+  PanelLeft,
   PanelRight,
   Rows3,
   Search,
@@ -430,6 +431,7 @@ export function Toolbar() {
   const layout = useStore((s) => s.layout);
   const thumbSize = useStore((s) => s.thumbSize);
   const inspectorOpen = useStore((s) => s.inspectorOpen);
+  const sidebarHidden = useStore((s) => s.sidebarHidden);
   const trashCount = useStore((s) => s.stats.trash);
   const { setQuery, setFilters, setLayout, setThumbSize, set, ask, refresh } = useStore.getState();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -477,9 +479,17 @@ export function Toolbar() {
 
   return (
     <header className="toolbar" ref={toolbarRef}>
-      {compact && (
+      {compact ? (
         <button className="icon-btn menu-btn" title="Folders and tags" onClick={() => set({ sidebarOpen: true })}>
           <Menu size={19} />
+        </button>
+      ) : (
+        <button
+          className={cls('icon-btn', !sidebarHidden && 'active')}
+          title="Toggle sidebar"
+          onClick={() => set({ sidebarHidden: !sidebarHidden })}
+        >
+          <PanelLeft size={17} />
         </button>
       )}
       {/* with no inspector beside the grid, the title opens the folder's or library's details */}

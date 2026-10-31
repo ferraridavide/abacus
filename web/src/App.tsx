@@ -19,6 +19,7 @@ const isTyping = (t: EventTarget | null) => !!(t as HTMLElement | null)?.closest
 export default function App() {
   const inspectorOpen = useStore((s) => s.inspectorOpen);
   const sidebarOpen = useStore((s) => s.sidebarOpen);
+  const sidebarHidden = useStore((s) => s.sidebarHidden);
   const details = useStore((s) => s.details);
   const selecting = useStore((s) => s.selected.size > 0);
   const folders = useStore((s) => s.folders);
@@ -149,13 +150,18 @@ export default function App() {
 
   return (
     <div
-      className={cls('app', !inspectorOpen && 'no-inspector', compact && selecting && 'selecting')}
+      className={cls(
+        'app',
+        !compact && !inspectorOpen && 'no-inspector',
+        !compact && sidebarHidden && 'no-sidebar',
+        compact && selecting && 'selecting',
+      )}
       onDragEnter={onDragEnter}
       onDragLeave={onDragLeave}
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
-      <Sidebar />
+      {(compact || !sidebarHidden) && <Sidebar />}
       {sidebarOpen && <div className="drawer-scrim" onClick={() => useStore.getState().set({ sidebarOpen: false })} />}
       <main className="main">
         <Toolbar />

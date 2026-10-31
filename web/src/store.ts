@@ -46,6 +46,8 @@ interface State {
   sort: { by: SortKey; dir: 'asc' | 'desc' };
   expanded: Record<string, boolean>;
   inspectorOpen: boolean;
+  /** the sidebar collapsed on wide screens (narrow screens use the drawer) */
+  sidebarHidden: boolean;
   tagsOpen: boolean;
   autoplay: AutoplayMode;
 
@@ -148,6 +150,7 @@ export const useStore = create<State>()(
       sort: { by: 'created', dir: 'desc' },
       expanded: {},
       inspectorOpen: true,
+      sidebarHidden: false,
       tagsOpen: true,
       autoplay: 'hover',
 
@@ -475,6 +478,7 @@ export const useStore = create<State>()(
         sort: s.sort,
         expanded: s.expanded,
         inspectorOpen: s.inspectorOpen,
+        sidebarHidden: s.sidebarHidden,
         tagsOpen: s.tagsOpen,
         autoplay: s.autoplay,
       }),
