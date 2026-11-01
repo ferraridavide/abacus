@@ -477,6 +477,11 @@ export function Toolbar() {
   const activeFilters =
     filters.types.length + (filters.source ? 1 : 0) + (filters.rating ? 1 : 0) + (filters.color ? 1 : 0);
 
+  // One toolbar button cycles the three layouts; the icon and tooltip show where it is and where it goes.
+  const layoutIndex = Math.max(0, LAYOUTS.findIndex((l) => l.key === layout));
+  const currentLayout = LAYOUTS[layoutIndex];
+  const nextLayout = LAYOUTS[(layoutIndex + 1) % LAYOUTS.length];
+
   return (
     <header className="toolbar" ref={toolbarRef}>
       {compact ? (
@@ -667,13 +672,15 @@ export function Toolbar() {
               )}
             </Popover>
 
-            <div className="segmented">
-              {LAYOUTS.map((l) => (
-                <button key={l.key} className={cls(layout === l.key && 'on')} title={l.label} onClick={() => setLayout(l.key)}>
-                  {l.icon}
-                </button>
-              ))}
-            </div>
+            <button
+              className="tool-btn"
+              title={`Layout: ${currentLayout.label} — next: ${nextLayout.label}`}
+              aria-label={`Layout: ${currentLayout.label}. Switch to ${nextLayout.label}.`}
+              data-layout={currentLayout.key}
+              onClick={() => setLayout(nextLayout.key)}
+            >
+              {currentLayout.icon}
+            </button>
 
             <input
               className="size-slider"
