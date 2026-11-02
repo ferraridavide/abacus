@@ -32,7 +32,13 @@ export const THEMES = [
 export const SCHEMES = ['light', 'dark', 'system'];
 export const CORNERS = ['squared', 'rounded'];
 
-export const DEFAULT_APPEARANCE = { scheme: 'dark', theme: 'graphite', oled: false, corners: 'squared', accent: ACCENTS[0].hex };
+export const DEFAULT_APPEARANCE = {
+  scheme: 'dark',
+  theme: 'graphite',
+  oled: true,
+  corners: 'rounded',
+  accent: ACCENTS.find((a) => a.id === 'blue').hex,
+};
 
 const HEX = /^#[0-9a-f]{6}$/i;
 
@@ -135,7 +141,7 @@ export function resolveAppearance(stored = {}) {
   const scheme = SCHEMES.includes(stored.scheme) ? stored.scheme : DEFAULT_APPEARANCE.scheme;
   const theme = themeById(stored.theme);
   const corners = CORNERS.includes(stored.corners) ? stored.corners : DEFAULT_APPEARANCE.corners;
-  const oled = stored.oled === true;
+  const oled = typeof stored.oled === 'boolean' ? stored.oled : DEFAULT_APPEARANCE.oled;
   const hex = HEX.test(String(stored.accent || '')) ? String(stored.accent).toLowerCase() : DEFAULT_APPEARANCE.accent;
   const preset = ACCENTS.find((a) => a.hex === hex);
 

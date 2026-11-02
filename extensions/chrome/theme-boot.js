@@ -10,10 +10,10 @@
   const STORAGE_KEY = 'abacus-theme';
 
   const DEFAULT_ACCENT = {
-    hex: '#e8a33d',
+    hex: '#5b8cff',
     ink: '#14120d',
-    soft: 'rgba(232, 163, 61, 0.14)',
-    text: { light: '#906526', dark: '#e8a33d' },
+    soft: 'rgba(91, 140, 255, 0.14)',
+    text: { light: '#38579e', dark: '#5b8cff' },
   };
 
   /** The corner scale, mirrored from web/src/styles.css. Squared is all zeros. */
@@ -41,8 +41,8 @@
     return {
       scheme: SCHEMES.includes(stored.scheme) ? stored.scheme : 'dark',
       theme: typeof stored.theme === 'string' ? stored.theme : 'graphite',
-      corners: stored.corners === 'rounded' ? 'rounded' : 'squared',
-      oled: stored.oled === true,
+      corners: stored.corners === 'squared' ? 'squared' : 'rounded',
+      oled: typeof stored.oled === 'boolean' ? stored.oled : true,
       accent: {
         hex,
         ink: HEX.test(accent.ink || '') ? accent.ink : DEFAULT_ACCENT.ink,

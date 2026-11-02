@@ -207,7 +207,8 @@ preview (the real app rising into frame on scroll) instead of a decorative hero.
 
 ## Theming
 
-The design above is the default, not the only look. **Settings → Appearance** carries the same three controls
+The design above is one look, not the only one. The shipped default is dark, OLED, rounded, and blue.
+**Settings → Appearance** carries the same three controls
 Obsidian's appearance panel does, in the same order: a base colour scheme, a short theme list, and an accent
 colour. There is no explanatory copy in that panel — labels only, which is the unslop rule for the rest of the app.
 
@@ -218,7 +219,7 @@ colour. There is no explanatory copy in that panel — labels only, which is the
   the edges still read without a lit panel. It is a third palette, not a filter over the dark one, and it is
   disabled while the light scheme is active.
 - **Accent color**: six presets or any `#rrggbb`.
-- **Corners**: `squared` (the design) or `rounded` (the corner scale the app had before).
+- **Corners**: `rounded` (the default) or `squared` (every radius token at 0).
 
 ### How it is stored
 
@@ -231,16 +232,16 @@ The server resolves the palettes, so no client re-implements the colour maths:
 
 ```json
 {
-  "scheme": "dark", "theme": "graphite", "corners": "squared", "oled": false,
-  "accent": { "id": "amber", "hex": "#e8a33d", "ink": "#14120d", "soft": "rgba(232, 163, 61, 0.14)",
-              "text": { "light": "#906526", "dark": "#e8a33d" } },
+  "scheme": "dark", "theme": "graphite", "corners": "rounded", "oled": true,
+  "accent": { "id": "blue", "hex": "#5b8cff", "ink": "#14120d", "soft": "rgba(91, 140, 255, 0.14)",
+              "text": { "light": "#38579e", "dark": "#5b8cff" } },
   "palettes": {
     "dark":  { "bg": "hsl(40 6% 6.5%)", "panel": "…", "text": "…", "primary": "…" },
     "light": { "bg": "hsl(40 6% 95%)",  "…": "…" },
     "oled":  { "bg": "hsl(40 6% 0%)",   "…": "…" }
   },
   "themes": [{ "id": "graphite", "label": "Graphite", "preview": { "light": {}, "dark": {} } }],
-  "presets": [{ "id": "amber", "label": "Amber", "hex": "#e8a33d" }]
+  "presets": [{ "id": "blue", "label": "Blue", "hex": "#5b8cff" }]
 }
 ```
 
@@ -260,7 +261,7 @@ The server resolves the palettes, so no client re-implements the colour maths:
   repaints, and listens to `prefers-color-scheme` while the scheme is `system`. `applyAppearance` sets
   `data-corners`, `data-scheme`, `color-scheme`, and the palette plus accent as inline custom properties. No
   component knows about the theme.
-- **Radius**: `:root` sets every `--r-*` to `0`; `:root[data-corners='rounded']` restores the legacy scale
+- **Radius**: `:root` sets the rounded scale; `:root[data-corners='squared']` zeroes every `--r-*`.
   (4/6/8/10/12/18/999px/50%). One block of CSS, not a second stylesheet.
 - **Extension**: `theme-boot.js` is a classic script in `<head>`, so a themed popup paints before the first frame
   from a localStorage mirror. `theme.js` then reads the server value on connect and on every popup open, caches it

@@ -157,7 +157,7 @@ async function save(payload) {
     const config = await getConfig();
     const tags = payload.tags ?? parseTagList(config.tags);
     const theme = await getTheme().catch(() => null);
-    await flashBadge('…', theme?.accent?.hex || '#e8a33d', false);
+    await flashBadge('…', theme?.accent?.hex || '#5b8cff', false);
     const data = await submitToAbacus({ ...payload, folder: payload.folder ?? config.folder, tags }, config);
     await imports.track(data, config);
     return data;

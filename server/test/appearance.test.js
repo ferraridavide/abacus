@@ -15,16 +15,16 @@ const get = () => app.call('GET', '/api/settings/appearance', undefined, { as: '
 const patch = (body) => app.call('PATCH', '/api/settings/appearance', body, { as: 'basic' });
 
 describe('appearance', () => {
-  test('starts dark, graphite and squared, and lists the themes and presets', async () => {
+  test('starts dark, graphite, rounded and OLED, with a blue accent', async () => {
     const { status, data, headers } = await get();
     assert.equal(status, 200);
     assert.equal(headers.get('cache-control'), 'no-store');
     assert.equal(data.scheme, 'dark');
     assert.equal(data.theme, 'graphite');
-    assert.equal(data.corners, 'squared');
-    assert.equal(data.oled, false);
-    assert.equal(data.accent.id, 'amber');
-    assert.equal(data.accent.hex, '#e8a33d');
+    assert.equal(data.corners, 'rounded');
+    assert.equal(data.oled, true);
+    assert.equal(data.accent.id, 'blue');
+    assert.equal(data.accent.hex, '#5b8cff');
     assert.ok(data.presets.length >= 4);
     assert.ok(data.presets.every((p) => p.id && p.label && /^#[0-9a-f]{6}$/i.test(p.hex)));
     assert.deepEqual(data.themes.map((t) => t.id), ['graphite', 'slate', 'sepia']);

@@ -185,14 +185,14 @@ export async function routes(app) {
 const QUICK_ADD_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Abacus · Saving…</title>
 <meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>
-  html,body{margin:0;height:100%;background:#111110;color:#ece9e3;font:14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+  html,body{margin:0;height:100%;background:#000;color:#ece9e3;font:14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
   .wrap{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;box-sizing:border-box;text-align:center}
   .logo{display:grid;place-items:center}
   .msg{font-weight:600}.sub{color:#86817a;font-size:12px;word-break:break-all;max-width:360px}
-  .spin{width:18px;height:18px;border:2px solid #333;border-top-color:#e8a33d;border-radius:0;animation:s .8s linear infinite}
+  .spin{width:18px;height:18px;border:2px solid #333;border-top-color:#5b8cff;border-radius:50%;animation:s .8s linear infinite}
   @keyframes s{to{transform:rotate(360deg)}}
 </style></head><body><div class="wrap">
-<div class="logo"><svg width="44" height="44" viewBox="0 0 100 100" fill="none" stroke="#e8a33d" stroke-width="6" stroke-linecap="square"><rect x="8" y="10" width="84" height="80"/><path d="M28 10v80M50 10v80M72 10v80M8 50h84"/><g fill="currentColor" stroke="none"><rect x="20" y="16" width="16" height="12"/><rect x="20" y="58" width="16" height="12"/><rect x="42" y="30" width="16" height="12"/><rect x="42" y="64" width="16" height="12"/><rect x="64" y="16" width="16" height="12"/><rect x="64" y="58" width="16" height="12"/></g></svg></div><div class="spin" id="spin"></div><div class="msg" id="msg">Saving to Abacus…</div><div class="sub" id="sub"></div>
+<div class="logo"><svg width="44" height="44" viewBox="0 0 100 100" fill="none" stroke="#5b8cff" stroke-width="6" stroke-linecap="square"><rect x="8" y="10" width="84" height="80"/><path d="M28 10v80M50 10v80M72 10v80M8 50h84"/><g fill="currentColor" stroke="none"><rect x="20" y="16" width="16" height="12"/><rect x="20" y="58" width="16" height="12"/><rect x="42" y="30" width="16" height="12"/><rect x="42" y="64" width="16" height="12"/><rect x="64" y="16" width="16" height="12"/><rect x="64" y="58" width="16" height="12"/></g></svg></div><div class="spin" id="spin"></div><div class="msg" id="msg">Saving to Abacus…</div><div class="sub" id="sub"></div>
 </div><script>
 (async () => {
   const p = new URLSearchParams(location.search);

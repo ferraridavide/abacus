@@ -1,55 +1,54 @@
 /*
  * Abacus design tokens — see docs/unslop.md.
  *
- * Squared: every --r-* corner token is 0. Edges are 1px hairlines and surface steps, never shadows or round frames.
- * One accent: amber, used only for selection, the active row, focus and the one figure that matters.
+ * Corners: the shipped default is the rounded scale. Squared (every --r-* at 0) is the other choice.
+ * One accent: blue by default, used only for selection, the active row, focus and the one figure that matters.
  * Spacing scale: 4 8 12 16 20 24 32 40 48 56 64. Sizes that nudge a small control may take a 2px step.
  * Type scale: 11 12 13 15 18 22. Two weights, 400 and 500, 600 for rare emphasis.
  * Metadata, dimensions, counts and shortcuts use --font-mono so figures sit in one column.
  */
 :root {
-  /* The default palette (theme Graphite, dark). The server sends these same values for every theme and mode;
-     they live here so the app paints correctly before the first request lands. */
-  --bg: hsl(40 6% 6.5%);
-  --panel: hsl(40 6% 9.5%);
-  --panel-2: hsl(40 6% 12.5%);
-  --panel-3: hsl(40 6% 16%);
-  --raise: hsl(40 6% 19%);
+  /* The default palette (theme Graphite, dark, OLED on). The server sends these same values for every theme
+     and mode; they live here so the app paints correctly before the first request lands. */
+  --bg: hsl(40 6% 0%);
+  --panel: hsl(40 6% 3%);
+  --panel-2: hsl(40 6% 5.5%);
+  --panel-3: hsl(40 6% 9%);
+  --raise: hsl(40 6% 12%);
   --hover: hsl(40 6% 91% / 0.05);
   --track: hsl(40 6% 91% / 0.08);
-  --border: hsl(40 6% 91% / 0.09);
-  --border-strong: hsl(40 6% 91% / 0.16);
+  --border: hsl(40 6% 91% / 0.14);
+  --border-strong: hsl(40 6% 91% / 0.21);
   --text: hsl(40 6% 91%);
   --text-dim: hsl(40 6% 64%);
   --text-faint: hsl(40 6% 50%);
-  --overlay: hsl(40 6% 9.5% / 0.97);
-  --scrim: hsl(0 0% 0% / 0.55);
-  --stage: hsl(40 6% 4.5%);
+  --overlay: hsl(40 6% 3% / 0.97);
+  --scrim: hsl(0 0% 0% / 0.72);
+  --stage: hsl(40 6% 0%);
   --stage-dot: hsl(40 6% 91% / 0.08);
-  --checker-a: hsl(40 6% 12.5%);
-  --checker-b: hsl(40 6% 16%);
+  --checker-a: hsl(40 6% 5.5%);
+  --checker-b: hsl(40 6% 9%);
   --primary: hsl(40 6% 91%);
   --on-primary: #14120d;
   --primary-hover: hsl(40 6% 97%);
-  /* one accent, taken from the darkroom: safelight amber */
-  --accent: #e8a33d;
-  --accent-soft: rgba(232, 163, 61, 0.14);
+  --accent: #5b8cff;
+  --accent-soft: rgba(91, 140, 255, 0.14);
   --accent-ink: #14120d;
   /* accent as ink on a surface: the same hue, darkened in light mode for contrast */
-  --accent-text: #e8a33d;
+  --accent-text: #5b8cff;
   --danger: hsl(6 62% 58%);
   --danger-soft: hsl(6 62% 58% / 0.14);
   --ok: hsl(155 42% 56%);
   --ok-soft: hsl(155 42% 56% / 0.14);
-  /* corner style: squared is the design; 'rounded' restores the legacy rounding */
-  --r-xs: 0;
-  --r-sm: 0;
-  --r-md: 0;
-  --r-lg: 0;
-  --r-xl: 0;
-  --r-2xl: 0;
-  --r-pill: 0;
-  --r-circle: 0;
+  /* corner style: rounded is the default; 'squared' zeroes the scale */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 10px;
+  --r-xl: 12px;
+  --r-2xl: 18px;
+  --r-pill: 999px;
+  --r-circle: 50%;
   --shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
   --font: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -62,16 +61,16 @@
   color-scheme: dark;
 }
 
-/* The rounded theme restores the corner scale the app had before the squared redesign. It is opt-in. */
-:root[data-corners='rounded'] {
-  --r-xs: 4px;
-  --r-sm: 6px;
-  --r-md: 8px;
-  --r-lg: 10px;
-  --r-xl: 12px;
-  --r-2xl: 18px;
-  --r-pill: 999px;
-  --r-circle: 50%;
+/* Squared is the other corner choice: every radius token goes to 0. */
+:root[data-corners='squared'] {
+  --r-xs: 0;
+  --r-sm: 0;
+  --r-md: 0;
+  --r-lg: 0;
+  --r-xl: 0;
+  --r-2xl: 0;
+  --r-pill: 0;
+  --r-circle: 0;
 }
 
 * {

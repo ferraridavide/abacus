@@ -78,9 +78,9 @@ function palette(theme: (typeof THEMES)[number], mode: keyof typeof MODES): Pale
 export const DEFAULT_APPEARANCE: AppearanceChoice = {
   scheme: 'dark',
   theme: 'graphite',
-  corners: 'squared',
-  oled: false,
-  accent: ACCENT_PRESETS[0].hex,
+  corners: 'rounded',
+  oled: true,
+  accent: ACCENT_PRESETS.find((a) => a.id === 'blue')!.hex,
 };
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -121,8 +121,8 @@ function mixHex(hex: string, toward: string, amount: number) {
 export function resolveAppearance(stored: Partial<AppearanceChoice> = {}): Appearance {
   const scheme = stored.scheme === 'light' || stored.scheme === 'system' ? stored.scheme : 'dark';
   const theme = THEMES.find((t) => t.id === stored.theme) ?? THEMES[0];
-  const corners = stored.corners === 'rounded' ? 'rounded' : 'squared';
-  const oled = stored.oled === true;
+  const corners = stored.corners === 'squared' || stored.corners === 'rounded' ? stored.corners : DEFAULT_APPEARANCE.corners;
+  const oled = typeof stored.oled === 'boolean' ? stored.oled : DEFAULT_APPEARANCE.oled;
   const hex = HEX.test(String(stored.accent || '')) ? String(stored.accent).toLowerCase() : DEFAULT_APPEARANCE.accent;
   const preset = ACCENT_PRESETS.find((a) => a.hex === hex);
   const [r, g, b] = channels(hex);
