@@ -5,6 +5,7 @@ import type { Box } from '../lib/layout';
 import { formatDate, formatDuration, hostOf, itemMeta } from '../lib/format';
 import { cls, XLogo } from './ui';
 import { useStore } from '../store';
+import { needsOriginal, Thumb, useProgressiveThumb, useSettled } from './Thumb';
 
 interface Props {
   item: Item;
@@ -39,6 +40,10 @@ export const Card = memo(function Card({
   const [hover, setHover] = useState(false);
   const [preview, setPreview] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const progressive = useProgressiveThumb(item);
+  // the thumbnail's own size, to tell whether the tile stretches it
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  const [originalLoaded, setOriginalLoaded] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const thumbH = box.h - captionH;
   const isMotion = item.type === 'video' || item.type === 'gif';
@@ -56,6 +61,8 @@ export const Card = memo(function Card({
   }, [hover, inView, autoplay, isMotion, item.fileUrl]);
 
   const bg = item.palette[0]?.hex;
+  // a tile bigger than its thumbnail's pixels fades the original in over it, once it has been on screen for a moment
+  const showOriginal = useSettled(!!natural && needsOriginal(item, natural, { w: box.w, h: thumbH }, fit), 300);
 
   return (
     <div
@@ -75,15 +82,16 @@ export const Card = memo(function Card({
         {item.type === 'bookmark' && !item.thumbUrl ? (
           <BookmarkFace item={item} />
         ) : item.thumbUrl ? (
-          <img
-            src={item.thumbUrl}
-            alt=""
-            draggable={false}
+          <Thumb
+            item={item}
             loading="lazy"
             decoding="async"
-            className={cls(loaded && 'loaded')}
+            className={cls((loaded || progressive) && 'loaded')}
             style={{ objectFit: fit }}
-            onLoad={() => setLoaded(true)}
+            onLoad={(e) => {
+              setLoaded(true);
+              setNatural({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight });
+            }}
           />
         ) : item.type === 'video' && item.fileUrl ? (
           <video src={item.fileUrl + '#t=0.5'} preload="metadata" muted playsInline className="loaded" style={{ objectFit: fit }} />
@@ -92,6 +100,18 @@ export const Card = memo(function Card({
             <FileIcon size={34} strokeWidth={1.4} />
             <span>{(item.ext || 'file').toUpperCase()}</span>
           </div>
+        )}
+
+        {showOriginal && (
+          <img
+            src={item.fileUrl!}
+            alt=""
+            draggable={false}
+            decoding="async"
+            className={cls(originalLoaded && 'loaded')}
+            style={{ objectFit: fit }}
+            onLoad={() => setOriginalLoaded(true)}
+          />
         )}
 
         {preview &&

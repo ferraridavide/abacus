@@ -7,6 +7,7 @@ import { itemMeta, safeHref } from '../lib/format';
 import { BookmarkFace } from './Card';
 import { useCompact } from './ui';
 import { ZoomImage } from './ZoomImage';
+import { Thumb, useJxlSupport } from './Thumb';
 
 export function Viewer() {
   const viewerId = useStore((s) => s.viewerId);
@@ -129,10 +130,12 @@ export function Viewer() {
 }
 
 function ViewerMedia({ item }: { item: Item }) {
+  // a poster can't fall back like a <picture>, so it's only the JPEG XL one where that decodes
+  const jxl = useJxlSupport();
   if (item.type === 'bookmark') {
     return (
       <div className="viewer-bookmark">
-        {item.thumbUrl && <img className="viewer-bookmark-image" src={item.thumbUrl} alt="" draggable={false} />}
+        {item.thumbUrl && <Thumb item={item} className="viewer-bookmark-image" />}
         <BookmarkFace item={item} large />
         {item.url && (
           <a className="btn primary" href={safeHref(item.url) ?? undefined} target="_blank" rel="noreferrer">
@@ -147,7 +150,7 @@ function ViewerMedia({ item }: { item: Item }) {
       <video
         className="viewer-video"
         src={item.fileUrl}
-        poster={item.thumbUrl || undefined}
+        poster={(jxl && item.thumbJxlUrl) || item.thumbUrl || undefined}
         controls={item.type === 'video'}
         autoPlay
         loop

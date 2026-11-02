@@ -177,6 +177,17 @@ if (db.prepare('PRAGMA user_version').get().user_version < 5) {
   db.exec('COMMIT');
 }
 
+// Optional progressive JPEG XL thumbnail, next to the webp one (which stays: embeddings and colours read it, and
+// browsers without JPEG XL show it). NULL means not made yet, '' means it couldn't be made. See thumbnails.js.
+if (!db.prepare("SELECT 1 FROM pragma_table_info('items') WHERE name = 'thumb_jxl'").get()) {
+  db.exec('ALTER TABLE items ADD COLUMN thumb_jxl TEXT');
+}
+// ...and a screen-sized one for the full-screen viewer, made from the original. '' when there's none: not an image,
+// or an original no bigger than the thumbnail.
+if (!db.prepare("SELECT 1 FROM pragma_table_info('items') WHERE name = 'preview_jxl'").get()) {
+  db.exec('ALTER TABLE items ADD COLUMN preview_jxl TEXT');
+}
+
 export function tx(fn) {
   db.exec('BEGIN');
   try {

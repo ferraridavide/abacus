@@ -1,10 +1,13 @@
 import fs from 'node:fs';
+import { Worker } from 'node:worker_threads';
 import sharp from 'sharp';
 import { histogramFromRgb, encodeHistogram } from './color.js';
 
 sharp.cache(false);
 
-const THUMB_WIDTH = 720;
+export const THUMB_WIDTH = 720;
+// long edge of the full-screen JPEG XL preview; never more than the original
+const PREVIEW_SIZE = 2560;
 
 /**
  * Inspect an image buffer. Returns null if sharp cannot decode it.
@@ -34,6 +37,55 @@ export async function makeThumb(buffer) {
     .resize({ width: THUMB_WIDTH, withoutEnlargement: true })
     .webp({ quality: 82 })
     .toBuffer();
+}
+
+let jxlWorker = null;
+const jxlPending = new Map();
+let jxlNextId = 0;
+
+function jxlEncoder() {
+  if (jxlWorker) return jxlWorker;
+  const worker = new Worker(new URL('./jxl-worker.js', import.meta.url));
+  worker.on('message', ({ id, buffer, error }) => {
+    const job = jxlPending.get(id);
+    jxlPending.delete(id);
+    if (!jxlPending.size) worker.unref();
+    if (error) job?.reject(new Error(error));
+    else job?.resolve(Buffer.from(buffer));
+  });
+  worker.on('error', (err) => {
+    for (const job of jxlPending.values()) job.reject(err);
+    jxlPending.clear();
+    jxlWorker = null;
+  });
+  jxlWorker = worker;
+  return worker;
+}
+
+/**
+ * Build a progressive JPEG XL image (first frame for animations): a thumbnail the same size as the webp one, or a
+ * screen-sized preview for the full-screen viewer. sharp's prebuilt libvips has no JPEG XL support, so the pixels
+ * are encoded by libjxl (WebAssembly) in a worker thread.
+ */
+export async function makeJxl(buffer, kind = 'thumb') {
+  const size =
+    kind === 'preview'
+      ? { width: PREVIEW_SIZE, height: PREVIEW_SIZE, fit: 'inside', withoutEnlargement: true }
+      : { width: THUMB_WIDTH, withoutEnlargement: true };
+  const { data, info } = await sharp(buffer, { animated: false, limitInputPixels: false })
+    .rotate()
+    .resize(size)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const pixels = data.buffer.slice(data.byteOffset, data.byteOffset + data.length);
+  const worker = jxlEncoder();
+  worker.ref();
+  const id = ++jxlNextId;
+  return new Promise((resolve, reject) => {
+    jxlPending.set(id, { resolve, reject });
+    worker.postMessage({ id, data: pixels, width: info.width, height: info.height }, [pixels]);
+  });
 }
 
 /** Extract a dominant colour palette via a small k-means. */

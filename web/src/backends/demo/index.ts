@@ -466,6 +466,12 @@ export async function createDemoBackend() {
     reprocessEmbeddings: () => unavailable('Semantic search'),
     itemEmbedding: async () => ({ state: 'off', parts: [] }),
     reprocessItemEmbedding: () => unavailable('Semantic search'),
+
+    storageUsage: () => unavailable('Measuring storage'),
+
+    // thumbnails are made in the browser, as webp
+    thumbnailSettings: async () => ({ jxl: false, previews: true, state: 'off', total: 0, processed: 0, failed: 0, lastFailure: null }),
+    updateThumbnails: () => unavailable('Converting thumbnails to JPEG XL'),
   };
 
   // a first visit starts with a small sample library, so there's something to look at

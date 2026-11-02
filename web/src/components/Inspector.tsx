@@ -23,6 +23,7 @@ import { useStore } from '../store';
 import type { Item, ItemEmbedding } from '../types';
 import { formatBytes, formatDate, formatDuration, FOLDER_COLORS, hostOf, safeHref } from '../lib/format';
 import { Avatar, BookmarkFace } from './Card';
+import { Thumb } from './Thumb';
 import { TagInput } from './TagInput';
 import { cls, XLogo } from './ui';
 
@@ -80,7 +81,7 @@ function SingleInspector({ item }: { item: Item }) {
     <div className="insp-body">
       <div className="insp-preview" onDoubleClick={() => set({ viewerId: item.id })}>
         {item.thumbUrl ? (
-          <img src={item.thumbUrl} alt="" draggable={false} />
+          <Thumb item={item} />
         ) : item.type === 'bookmark' ? (
           <BookmarkFace item={item} />
         ) : item.type === 'video' && item.fileUrl ? (
@@ -408,11 +409,9 @@ function MultiInspector({ items, ids }: { items: Item[]; ids: string[] }) {
     <div className="insp-body">
       <div className="insp-stack">
         {stack.map((it, i) => (
-          <img
+          <Thumb
             key={it.id}
-            src={it.thumbUrl!}
-            alt=""
-            draggable={false}
+            item={it}
             style={{ transform: `rotate(${(i - (stack.length - 1) / 2) * 7}deg) translateY(${Math.abs(i - 1) * 4}px)`, zIndex: i === 1 ? 2 : 1 }}
           />
         ))}

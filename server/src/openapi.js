@@ -85,7 +85,7 @@ export function createOpenApi({ authRequired = false } = {}) {
     tags: [
       { name: 'Integration', description: 'Operations available to API keys and the web login.' },
       { name: 'Library', description: 'Read and manage items, folders, and tags using the web login.' },
-      { name: 'Settings', description: 'Manage API keys, import providers, and semantic search using the web login.' },
+      { name: 'Settings', description: 'Manage API keys, import providers, semantic search, and thumbnails using the web login.' },
       { name: 'Legacy', description: 'Compatibility wrappers; use POST /api/add for new clients.' },
       { name: 'System', description: 'Server health.' },
     ],
@@ -194,6 +194,13 @@ export function createOpenApi({ authRequired = false } = {}) {
       }) },
       '/api/embeddings/status': { get: operation('embeddingStatus', 'Settings', 'Read semantic indexing progress', ref('EmbeddingStatus')) },
       '/api/embeddings/reprocess': { post: operation('reprocessEmbeddings', 'Settings', 'Rebuild all semantic search embeddings', ref('EmbeddingStatus')) },
+      '/api/settings/storage': { get: operation('storageUsage', 'Settings', 'Read the disk space the library uses, by kind', ref('StorageUsage')) },
+      '/api/settings/thumbnails': {
+        get: operation('thumbnailSettings', 'Settings', 'Read thumbnail settings and JPEG XL conversion progress', ref('ThumbnailSettings')),
+        patch: operation('updateThumbnails', 'Settings', 'Turn progressive JPEG XL thumbnails or previews on or off', ref('ThumbnailSettings'), {
+          requestBody: body('ThumbnailSettingsPatch'),
+        }),
+      },
       '/api/items/{id}/embedding': {
         get: byId('itemEmbedding', 'Library', 'Read an item’s semantic indexing status', ref('ItemEmbedding'), { responses: { 404: error('Item not found.') } }),
         post: byId('reprocessItemEmbedding', 'Library', 'Recompute an item’s semantic search embeddings', ref('ItemEmbedding'), { responses: { 404: error('Item not found.') } }),

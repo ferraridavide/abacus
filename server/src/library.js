@@ -16,6 +16,7 @@ import {
 } from './color.js';
 import { kickEmbeddings, similarityTo, textChanged } from './embeddings.js';
 import { bumpRevision } from './revision.js';
+import { jxlPreviewsEnabled, jxlThumbsEnabled, kickJxlThumbs } from './thumbnails.js';
 
 const ITEM_COLUMNS = `
   i.*,
@@ -33,6 +34,9 @@ export function serializeItem(row) {
     mime: row.mime,
     fileUrl: row.file ? '/files/' + row.file.split('/').map(encodeURIComponent).join('/') : null,
     thumbUrl: row.thumb ? '/thumbs/' + row.thumb + '?v=' + row.updated_at : null,
+    // only while the setting is on, so turning it off takes effect before the files are gone
+    thumbJxlUrl: row.thumb_jxl && jxlThumbsEnabled() ? '/thumbs/' + row.thumb_jxl : null,
+    previewJxlUrl: row.preview_jxl && jxlPreviewsEnabled() ? '/thumbs/' + row.preview_jxl : null,
     width: row.width,
     height: row.height,
     duration: row.duration,
@@ -178,6 +182,7 @@ export async function addItem(input) {
   });
   bumpRevision();
   kickEmbeddings();
+  kickJxlThumbs();
   return getItem(id);
 }
 
@@ -571,7 +576,7 @@ export function batch({ ids = [], action, tags = [], folderId, fromFolderId }) {
           db.prepare('UPDATE items SET deleted_at = NULL, updated_at = ? WHERE id = ?').run(now, id);
           break;
         case 'delete': {
-          const row = db.prepare('SELECT file, thumb FROM items WHERE id = ?').get(id);
+          const row = db.prepare('SELECT file, thumb, thumb_jxl, preview_jxl FROM items WHERE id = ?').get(id);
           if (row) removedFiles.push({ id, ...row });
           db.prepare('DELETE FROM items WHERE id = ?').run(id);
           break;
@@ -619,9 +624,11 @@ export function emptyTrash() {
   return batch({ ids, action: 'delete' });
 }
 
-function removeItemFiles({ id, thumb }) {
+function removeItemFiles({ id, thumb, thumb_jxl, preview_jxl }) {
   fs.rmSync(path.join(paths.files, id), { recursive: true, force: true });
   if (thumb) fs.rmSync(path.join(paths.thumbs, thumb), { force: true });
+  if (thumb_jxl) fs.rmSync(path.join(paths.thumbs, thumb_jxl), { force: true });
+  if (preview_jxl) fs.rmSync(path.join(paths.thumbs, preview_jxl), { force: true });
 }
 
 // ---------- folders ----------

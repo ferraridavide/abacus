@@ -14,6 +14,8 @@ It runs as a web app with a Node.js backend and a SQLite database, and ships as 
 - Optional semantic search that finds images, GIFs, videos, links, and posts by what they are about, using
   embeddings from an external service with an OpenAI-compatible API, such as Ollama.
 - Filters by type, source, rating, and color.
+- Optional progressive JPEG XL thumbnails: a coarse preview shows while a thumbnail downloads, and large grid
+  tiles and the full-screen viewer then load the original. Browsers without JPEG XL keep the WebP thumbnails.
 - Import from X (Twitter) post links, image and video URLs, web pages, Are.na channel exports, and local
   files.
 - Optional import providers, such as [cobalt](https://github.com/imputnet/cobalt), for YouTube, TikTok,
@@ -114,7 +116,9 @@ Set these environment variables in `docker-compose.yml` or in your shell.
 | `MAX_DOWNLOAD_MB`    | `1024`   | Maximum size of a single downloaded or uploaded file.    |
 
 Per-browser preferences, such as layout, thumbnail size, and video autoplay, are set in **Settings**. Import
-providers and API keys (**Settings → Integration**) are also set up there, and apply to every browser.
+providers and API keys (**Settings → Integration**) are also set up there, and apply to every browser, and so do
+progressive JPEG XL thumbnails (**Settings → Thumbnails**). Turning those on converts every thumbnail in the
+background; turning them off deletes the JPEG XL files.
 
 ## Search by color
 
@@ -224,6 +228,6 @@ Set `AUTH_PASSWORD` to require a web login; creating API keys does not enable th
 | ------------------------ | ------------------------------ |
 | `DATA_DIR/library.db`    | SQLite database (WAL mode).    |
 | `DATA_DIR/files/<id>/`   | Original files.                |
-| `DATA_DIR/thumbs/`       | WebP thumbnails.               |
+| `DATA_DIR/thumbs/`       | WebP and JPEG XL thumbnails.   |
 
 To back up a library, copy `DATA_DIR` while the server is stopped.

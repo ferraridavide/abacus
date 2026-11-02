@@ -5,6 +5,8 @@ import { activeProviders, listProviderSettings, testProvider, updateProvider } f
 import * as embeddings from './embeddings.js';
 import { createApiKey, deleteApiKey, listApiKeys } from './api-keys.js';
 import { getRevision } from './revision.js';
+import { thumbnailSettings, updateThumbnails } from './thumbnails.js';
+import { storageUsage } from './storage.js';
 
 const notFound = (reply) => reply.code(404).send({ error: 'Not found' });
 
@@ -155,6 +157,13 @@ export async function routes(app) {
   app.post('/api/settings/embeddings/test', async (req) => embeddings.testEmbeddings(req.body?.values));
   app.get('/api/embeddings/status', async () => embeddings.embeddingStatus());
   app.post('/api/embeddings/reprocess', async () => embeddings.reprocessAll());
+
+  // ---------- settings (thumbnails) ----------
+  app.get('/api/settings/thumbnails', async () => thumbnailSettings());
+  app.patch('/api/settings/thumbnails', async (req) => updateThumbnails(req.body || {}));
+
+  // ---------- settings (storage usage) ----------
+  app.get('/api/settings/storage', async () => storageUsage());
 
   // ---------- bookmarklet landing page ----------
   app.get('/quick-add', async (req, reply) => {

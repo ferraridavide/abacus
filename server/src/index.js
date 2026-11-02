@@ -4,11 +4,13 @@ import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyMultipart from '@fastify/multipart';
 import fastifyCompress from '@fastify/compress';
+import { mime } from '@fastify/send';
 import { config, paths } from './config.js';
 import { routes } from './routes.js';
 import { apiDocs } from './api-docs.js';
 import { kickEmbeddings } from './embeddings.js';
 import { backfillColorHistograms } from './library.js';
+import { kickJxlThumbs } from './thumbnails.js';
 import { findApiKey, migrateEnvironmentApiToken, recordApiKeyUse } from './api-keys.js';
 
 migrateEnvironmentApiToken();
@@ -82,6 +84,9 @@ await app.register(fastifyCompress, { threshold: 1024 });
 
 await app.register(fastifyMultipart, { limits: { fileSize: config.maxDownloadBytes, files: 2 } });
 
+// the static server's mime table doesn't know JPEG XL thumbnails yet
+mime.define({ 'image/jxl': ['jxl'] }, true);
+
 await app.register(fastifyStatic, {
   root: paths.files,
   prefix: '/files/',
@@ -127,3 +132,6 @@ kickEmbeddings();
 
 // index real pixel colours for items imported before colour search existed
 backfillColorHistograms();
+
+// finish a JPEG XL thumbnail conversion the last run didn't get through
+kickJxlThumbs();
