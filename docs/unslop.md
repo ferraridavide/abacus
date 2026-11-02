@@ -269,6 +269,9 @@ The server resolves the palettes, so no client re-implements the colour maths:
   dock, toast and screenshot overlay receive the same custom properties on their shadow host.
 - **The demo build** has no server, so `web/src/lib/theme.ts` mirrors the server's theme/ladder maths. The two
   files say so in their headers; keep them in step.
+- **Pages that arrive from upstream** (storage, thumbnails) use the same tokens. The storage chart leads with the
+  accent and keeps the thumbnail family in one quiet green instead of its own rainbow, so a new upstream page does
+  not undo the colour pass.
 
 ### The rounded theme is a scale, not a rewind
 
