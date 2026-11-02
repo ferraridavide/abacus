@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api, type BatchAction, type FolderPatch, type ItemPatch } from './api';
 import type {
+  Appearance,
+  AppearanceChoice,
   AutoplayMode,
   Filters,
   Folder,
@@ -15,6 +17,7 @@ import type {
   View,
 } from './types';
 import { isVideoFile, probeVideo } from './lib/upload';
+import { applyAppearance, cacheAppearance, cachedAppearance, resolveAppearance } from './lib/theme';
 
 export interface Toast {
   id: number;
@@ -50,6 +53,8 @@ interface State {
   sidebarHidden: boolean;
   tagsOpen: boolean;
   autoplay: AutoplayMode;
+  /** the instance theme, owned by the server so the extension can mirror it */
+  appearance: Appearance;
 
   // library
   view: View;
@@ -96,6 +101,10 @@ interface State {
   setLayout: (l: LayoutMode) => void;
   setThumbSize: (n: number) => void;
   set: (patch: Partial<State>) => void;
+  /** Read the theme from the server (or the demo's storage) and paint it. */
+  refreshAppearance: () => Promise<void>;
+  /** Change the instance theme: patched on the server, cached here, painted immediately. */
+  setAppearance: (patch: Partial<AppearanceChoice>) => Promise<void>;
   refresh: () => Promise<void>;
   /** 'reset' starts again from page one; 'keep' re-fetches the pages already loaded (after edits, imports). */
   refreshItems: (mode?: 'reset' | 'keep') => Promise<void>;
@@ -157,6 +166,7 @@ export const useStore = create<State>()(
       sidebarHidden: false,
       tagsOpen: true,
       autoplay: 'hover',
+      appearance: cachedAppearance() ?? resolveAppearance(),
 
       view: { kind: 'all' },
       query: '',
@@ -210,6 +220,39 @@ export const useStore = create<State>()(
 
       refresh: async () => {
         await Promise.all([get().refreshItems('keep'), get().refreshMeta()]);
+      },
+
+      refreshAppearance: async () => {
+        try {
+          const appearance = await api.appearance();
+          applyAppearance(appearance);
+          cacheAppearance(appearance);
+          set({ appearance });
+        } catch {
+          // offline or a stale build: keep the cached theme rather than flashing the default
+        }
+      },
+
+      setAppearance: async (patch) => {
+        const current = get().appearance;
+        applyAppearance(
+          resolveAppearance({
+            scheme: patch.scheme ?? current.scheme,
+            theme: patch.theme ?? current.theme,
+            corners: patch.corners ?? current.corners,
+            oled: patch.oled ?? current.oled,
+            accent: patch.accent ?? current.accent.hex,
+          })
+        );
+        try {
+          const appearance = await api.updateAppearance(patch);
+          applyAppearance(appearance);
+          cacheAppearance(appearance);
+          set({ appearance });
+        } catch (e) {
+          get().toast((e as Error).message, 'error');
+          await get().refreshAppearance();
+        }
       },
 
       refreshItems: async (mode = 'reset') => {

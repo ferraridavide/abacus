@@ -1,6 +1,7 @@
 import { UnavailableError, type Backend, type BatchAction, type FolderPatch, type ItemPatch } from '../../api';
 import type { Folder, Item, ItemType, PaletteColor, Source, TagCount } from '../../types';
 import { COLOR_MIN_SCORE, colorScore, hexToRgb, parseColor, rgbToOklab } from './color';
+import { resolveAppearance } from '../../lib/theme';
 import { openDemoDb } from './db';
 import { analyzeImage } from './media';
 import { seedLibrary } from './seed';
@@ -50,6 +51,16 @@ export interface NewItem {
 }
 
 const SERVER_ONLY = "isn't available in the demo, which runs entirely in your browser.";
+const APPEARANCE_KEY = 'abacus-appearance';
+
+function readAppearance() {
+  try {
+    return JSON.parse(localStorage.getItem(APPEARANCE_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
 const unavailable = (what: string) => Promise.reject(new UnavailableError(`${what} ${SERVER_ONLY}`));
 
 const VIDEO_EXTS = new Set(['mp4', 'webm', 'mov', 'm4v', 'ogv', 'mkv']);
@@ -454,6 +465,20 @@ export async function createDemoBackend() {
     apiKeys: () => unavailable('Managing API keys'),
     createApiKey: () => unavailable('Managing API keys'),
     deleteApiKey: () => unavailable('Managing API keys'),
+    // the demo has no server, so its theme lives in this browser
+    appearance: async () => resolveAppearance(readAppearance()),
+    updateAppearance: async (patch) => {
+      const current = readAppearance();
+      const next = {
+        scheme: patch.scheme ?? current.scheme,
+        theme: patch.theme ?? current.theme,
+        corners: patch.corners ?? current.corners,
+        oled: patch.oled ?? current.oled,
+        accent: patch.accent ?? current.accent,
+      };
+      localStorage.setItem(APPEARANCE_KEY, JSON.stringify(next));
+      return resolveAppearance(next);
+    },
     providerSettings: () => unavailable('Setting up import providers'),
     updateProvider: () => unavailable('Setting up import providers'),
     testProvider: () => unavailable('Setting up import providers'),

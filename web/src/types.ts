@@ -187,3 +187,68 @@ export interface ApiKey {
 export interface CreatedApiKey extends ApiKey {
   token: string;
 }
+
+export interface AccentPreset {
+  id: string;
+  label: string;
+  hex: string;
+}
+
+/** Every colour a surface needs, as custom-property values (`panel2` becomes `--panel-2`). */
+export interface Palette {
+  bg: string;
+  panel: string;
+  panel2: string;
+  panel3: string;
+  raise: string;
+  hover: string;
+  track: string;
+  border: string;
+  borderStrong: string;
+  text: string;
+  textDim: string;
+  textFaint: string;
+  overlay: string;
+  scrim: string;
+  stage: string;
+  stageDot: string;
+  checkerA: string;
+  checkerB: string;
+  shadow: string;
+  primary: string;
+  onPrimary: string;
+  primaryHover: string;
+  danger: string;
+  dangerSoft: string;
+  ok: string;
+  okSoft: string;
+}
+
+export type Scheme = 'light' | 'dark' | 'system';
+
+/** The choices, as stored on the server. */
+export interface AppearanceChoice {
+  scheme: Scheme;
+  theme: string;
+  corners: 'squared' | 'rounded';
+  oled: boolean;
+  accent: string;
+}
+
+/** A theme in the theme list, with the two preview colours the settings page draws. */
+export interface ThemeChoice {
+  id: string;
+  label: string;
+  preview: {
+    light: { bg: string; panel: string; text: string };
+    dark: { bg: string; panel: string; text: string };
+  };
+}
+
+/** The instance theme, as returned by the server: the choices plus every palette they resolve to. */
+export interface Appearance extends Omit<AppearanceChoice, 'accent'> {
+  accent: AccentPreset & { ink: string; soft: string; text: { light: string; dark: string } };
+  palettes: { light: Palette; dark: Palette; oled: Palette };
+  themes: ThemeChoice[];
+  presets: AccentPreset[];
+}

@@ -113,8 +113,10 @@ Set these environment variables in `docker-compose.yml` or in your shell.
 | `IMPORT_CONCURRENCY` | `3`      | Number of links fetched in parallel during an import.    |
 | `MAX_DOWNLOAD_MB`    | `1024`   | Maximum size of a single downloaded or uploaded file.    |
 
-Per-browser preferences, such as layout, thumbnail size, and video autoplay, are set in **Settings**. Import
-providers and API keys (**Settings → Integration**) are also set up there, and apply to every browser.
+Per-browser preferences, such as layout, thumbnail size, and video autoplay, are set in **Settings**. The theme
+(**Settings → Appearance**) — light, dark or system, a theme (Graphite, Slate, Sepia), OLED mode, the accent
+colour and squared or rounded corners — is stored on the server, so every browser and the Chrome extension wear it
+too. Import providers and API keys (**Settings → Integration**) are also set up there, and apply to every browser.
 
 ## Search by color
 

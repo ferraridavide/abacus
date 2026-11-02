@@ -2,7 +2,11 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { provideBackend } from './api';
+import { initAppearance } from './lib/theme';
 import './styles.css';
+
+// paint the cached theme before the first render, then App reconciles with the server
+initAppearance();
 
 const root = createRoot(document.getElementById('root')!);
 

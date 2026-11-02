@@ -28,7 +28,15 @@ function safeEqual(a, b) {
 
 // The API token is for clients that add content (extension, scripts). It can add items, follow the
 // import job, and suggest folders/tags; everything else (deleting, settings, files) needs the login.
-const TOKEN_ROUTES = new Set(['POST /api/add', 'POST /api/v1/add', 'GET /api/jobs/:id', 'GET /api/bootstrap', 'GET /api/autocomplete']);
+const TOKEN_ROUTES = new Set([
+  'POST /api/add',
+  'POST /api/v1/add',
+  'GET /api/jobs/:id',
+  'GET /api/bootstrap',
+  'GET /api/autocomplete',
+  // the extension wears the library's theme, so a key may read it (it carries no secrets)
+  'GET /api/settings/appearance',
+]);
 
 function requestApiKey(req) {
   const auth = req.headers.authorization || '';

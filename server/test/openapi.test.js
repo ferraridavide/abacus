@@ -43,7 +43,8 @@ describe('OpenAPI specification', () => {
       Object.entries(methods).filter(([, op]) => op.security?.some((auth) => 'bearerAuth' in auth || 'apiKey' in auth))
         .map(([method]) => `${method} ${path}`));
     assert.deepEqual(keyRoutes.sort(), [
-      'get /api/autocomplete', 'get /api/bootstrap', 'get /api/jobs/{id}', 'post /api/add', 'post /api/v1/add',
+      'get /api/autocomplete', 'get /api/bootstrap', 'get /api/jobs/{id}', 'get /api/settings/appearance',
+      'post /api/add', 'post /api/v1/add',
     ]);
     assert.deepEqual(spec.security, [{ basicAuth: [] }]);
     assert.deepEqual(spec.paths['/api/health'].get.security, []);

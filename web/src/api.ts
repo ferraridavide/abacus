@@ -1,6 +1,8 @@
 import type {
   ActiveProvider,
   ApiKey,
+  Appearance,
+  AppearanceChoice,
   CreatedApiKey,
   EmbeddingStatus,
   Folder,
@@ -55,6 +57,8 @@ export interface Backend {
   apiKeys(): Promise<ApiKey[]>;
   createApiKey(name: string): Promise<CreatedApiKey>;
   deleteApiKey(id: string): Promise<{ ok: boolean }>;
+  appearance(): Promise<Appearance>;
+  updateAppearance(patch: Partial<AppearanceChoice>): Promise<Appearance>;
   providerSettings(): Promise<ProviderSettings[]>;
   updateProvider(id: string, body: ServicePatch): Promise<ProviderSettings>;
   testProvider(id: string, values: Record<string, string>): Promise<ProviderTest>;

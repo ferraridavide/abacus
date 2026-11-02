@@ -1,6 +1,8 @@
 import type {
   ActiveProvider,
   ApiKey,
+  Appearance,
+  AppearanceChoice,
   CreatedApiKey,
   EmbeddingStatus,
   Folder,
@@ -57,6 +59,9 @@ export const httpBackend: Backend = {
   apiKeys: () => request<ApiKey[]>('GET', '/api/settings/api-keys'),
   createApiKey: (name: string) => request<CreatedApiKey>('POST', '/api/settings/api-keys', { name }),
   deleteApiKey: (id: string) => request<{ ok: boolean }>('DELETE', `/api/settings/api-keys/${id}`),
+  appearance: () => request<Appearance>('GET', '/api/settings/appearance'),
+  updateAppearance: (body: Partial<AppearanceChoice>) =>
+    request<Appearance>('PATCH', '/api/settings/appearance', body),
   providerSettings: () => request<ProviderSettings[]>('GET', '/api/settings/providers'),
   updateProvider: (id: string, body: { enabled?: boolean; values?: Record<string, string> }) =>
     request<ProviderSettings>('PATCH', `/api/settings/providers/${id}`, body),

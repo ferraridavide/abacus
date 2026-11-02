@@ -115,6 +115,42 @@ export const schemas = {
   CreatedApiKey: { allOf: [ref('ApiKey'), object({ token: { ...string, description: 'Shown only once; save it now.' } }, ['token'])] },
   ApiKeyCreate: object({ name: { type: 'string', minLength: 1, maxLength: 100, example: 'My script' } }, ['name']),
   ActiveProvider: object({ id: string, name: string, sites: strings }, ['id', 'name', 'sites']),
+  AccentPreset: object({ id: string, label: string, hex: string }, ['id', 'label', 'hex']),
+  Palette: object({
+    bg: string, panel: string, panel2: string, panel3: string, raise: string, hover: string, track: string,
+    border: string, borderStrong: string, text: string, textDim: string, textFaint: string,
+    overlay: string, scrim: string, stage: string, stageDot: string, checkerA: string, checkerB: string,
+    shadow: string, primary: string, onPrimary: string, primaryHover: string,
+    danger: string, dangerSoft: string, ok: string, okSoft: string,
+  }, ['bg', 'panel', 'text']),
+  Appearance: object({
+    scheme: { type: 'string', enum: ['light', 'dark', 'system'] },
+    theme: string,
+    corners: { type: 'string', enum: ['squared', 'rounded'] },
+    oled: boolean,
+    accent: object({
+      id: string, label: string, hex: string,
+      ink: { ...string, description: 'Text colour that stays readable on the accent.' },
+      soft: { ...string, description: 'The 14% wash used for selections and focus rings.' },
+      text: object({ light: string, dark: string }, ['light', 'dark']),
+    }, ['id', 'label', 'hex', 'ink', 'soft', 'text']),
+    palettes: object({ light: ref('Palette'), dark: ref('Palette'), oled: ref('Palette') }, ['light', 'dark', 'oled']),
+    themes: array(object({
+      id: string, label: string,
+      preview: object({
+        light: object({ bg: string, panel: string, text: string }, ['bg', 'panel', 'text']),
+        dark: object({ bg: string, panel: string, text: string }, ['bg', 'panel', 'text']),
+      }, ['light', 'dark']),
+    }, ['id', 'label', 'preview'])),
+    presets: array(ref('AccentPreset')),
+  }, ['scheme', 'theme', 'corners', 'oled', 'accent', 'palettes', 'themes', 'presets']),
+  AppearancePatch: object({
+    scheme: { type: 'string', enum: ['light', 'dark', 'system'], description: 'Base colour scheme.' },
+    theme: { type: 'string', description: 'Theme id, from themes.' },
+    oled: { type: 'boolean', description: 'Pure black surfaces in the dark scheme.' },
+    corners: { type: 'string', enum: ['squared', 'rounded'], description: 'Corner style for the app and the extension.' },
+    accent: { type: 'string', description: 'A preset id (see presets) or any #rrggbb. Unknown values are ignored.' },
+  }),
   ServiceSettings: object({
     id: string, name: string, description: string, docsUrl: string, enabled: boolean,
     fields: array(object({

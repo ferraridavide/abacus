@@ -14,6 +14,7 @@ import { SelectionBar } from './components/SelectionBar';
 import { dragKind } from './lib/dnd';
 import { countLinks } from './lib/format';
 import { cls, Sheet, useCompact } from './components/ui';
+import { applyAppearance, watchSystemScheme } from './lib/theme';
 
 const isTyping = (t: EventTarget | null) => !!(t as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable]');
 
@@ -31,7 +32,11 @@ export default function App() {
 
   useEffect(() => {
     useStore.getState().refresh();
+    useStore.getState().refreshAppearance();
   }, []);
+
+  // the OS flipped between light and dark, and the scheme is "system"
+  useEffect(() => watchSystemScheme(() => applyAppearance(useStore.getState().appearance)), []);
 
   // pick up items added from outside (the browser extension, scripts)
   useEffect(() => startLiveSync(), []);

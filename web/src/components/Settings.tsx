@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { CloudDownload, KeyRound, MousePointer2, PauseCircle, PlayCircle, Play, Sparkles } from 'lucide-react';
+import { CloudDownload, KeyRound, MousePointer2, Palette, PauseCircle, PlayCircle, Play, Plus, Sparkles } from 'lucide-react';
 import { useStore } from '../store';
 import type { AutoplayMode } from '../types';
 import { SemanticSearchSettings } from './SemanticSearchSettings';
@@ -7,10 +7,11 @@ import { ImportSourcesSettings, ProviderDetail, useProviderSettings } from './Pr
 import { IntegrationSettings } from './IntegrationSettings';
 import { cls, DialogHead, Modal, PageLink, usePhone } from './ui';
 
-type Section = 'playback' | 'sources' | 'search' | 'integration';
+type Section = 'playback' | 'appearance' | 'sources' | 'search' | 'integration';
 
 const SECTIONS: { key: Section; label: string; desc: string; icon: ReactNode }[] = [
   { key: 'playback', label: 'Playback', desc: 'Autoplay of videos and GIFs', icon: <Play size={15} /> },
+  { key: 'appearance', label: 'Appearance', desc: 'Theme, accent and corners', icon: <Palette size={15} /> },
   { key: 'sources', label: 'Import sources', desc: 'Providers that download media', icon: <CloudDownload size={15} /> },
   { key: 'search', label: 'Semantic search', desc: 'Find anything by what it is about', icon: <Sparkles size={15} /> },
   { key: 'integration', label: 'Integration', desc: 'API keys and documentation', icon: <KeyRound size={15} /> },
@@ -71,6 +72,7 @@ function SettingsInner() {
             </>
           )}
           {section === 'playback' && <PlaybackSettings />}
+          {section === 'appearance' && <AppearanceSettings />}
           {section === 'search' && <SemanticSearchSettings />}
           {section === 'integration' && <IntegrationSettings />}
           {section === 'sources' &&
@@ -123,6 +125,134 @@ function PlaybackSettings() {
             <span className="radio" />
           </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+const SCHEMES: { key: 'light' | 'dark' | 'system'; label: string }[] = [
+  { key: 'light', label: 'Light' },
+  { key: 'dark', label: 'Dark' },
+  { key: 'system', label: 'System' },
+];
+
+/** Mirrors `effectiveScheme` in lib/theme: which preview to draw for a theme card. */
+function previewScheme(scheme: 'light' | 'dark' | 'system'): 'light' | 'dark' {
+  if (scheme !== 'system') return scheme;
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
+/** The theme is stored on the server, so the browser extension can match the app it saves to. */
+function AppearanceSettings() {
+  const appearance = useStore((s) => s.appearance);
+  const setAppearance = useStore((s) => s.setAppearance);
+  const custom = appearance.accent.id === 'custom';
+  const mode = previewScheme(appearance.scheme);
+
+  return (
+    <div className="appearance">
+      <div className="appearance-block">
+        <div className="appearance-label">Base color scheme</div>
+        <div className="segmented block" role="radiogroup" aria-label="Base color scheme">
+          {SCHEMES.map((s) => (
+            <button
+              key={s.key}
+              role="radio"
+              aria-checked={appearance.scheme === s.key}
+              className={cls(appearance.scheme === s.key && 'on')}
+              onClick={() => setAppearance({ scheme: s.key })}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="appearance-block">
+        <div className="appearance-label">Themes</div>
+        <div className="theme-grid" role="radiogroup" aria-label="Theme">
+          {appearance.themes.map((theme) => {
+            const preview = theme.preview[mode];
+            return (
+              <button
+                key={theme.id}
+                role="radio"
+                aria-checked={appearance.theme === theme.id}
+                className={cls('theme-card', appearance.theme === theme.id && 'on')}
+                onClick={() => setAppearance({ theme: theme.id })}
+              >
+                <span className="theme-preview" style={{ background: preview.bg }}>
+                  <span className="theme-preview-panel" style={{ background: preview.panel }} />
+                  <span className="theme-preview-line" style={{ background: preview.text }} />
+                  <span className="theme-preview-line short" style={{ background: preview.text }} />
+                </span>
+                <span className="theme-card-label">{theme.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="appearance-block">
+        <div className="appearance-label">Accent color</div>
+        <div className="accent-row" role="radiogroup" aria-label="Accent color">
+          {appearance.presets.map((preset) => (
+            <button
+              key={preset.id}
+              role="radio"
+              aria-checked={!custom && appearance.accent.hex === preset.hex}
+              className={cls('accent-dot', !custom && appearance.accent.hex === preset.hex && 'on')}
+              style={{ background: preset.hex }}
+              title={preset.label}
+              aria-label={preset.label}
+              onClick={() => setAppearance({ accent: preset.hex })}
+            />
+          ))}
+          <label className={cls('accent-dot custom', custom && 'on')} title="Custom accent">
+            <input
+              type="color"
+              className="accent-input"
+              value={appearance.accent.hex}
+              onChange={(e) => setAppearance({ accent: e.target.value })}
+              aria-label="Custom accent color"
+            />
+            <Plus size={12} aria-hidden />
+          </label>
+        </div>
+      </div>
+
+      <div className="appearance-block">
+        <div className="appearance-label">Corners</div>
+        <div className="segmented block" role="radiogroup" aria-label="Corners">
+          <button
+            role="radio"
+            aria-checked={appearance.corners === 'squared'}
+            className={cls(appearance.corners === 'squared' && 'on')}
+            onClick={() => setAppearance({ corners: 'squared' })}
+          >
+            Squared
+          </button>
+          <button
+            role="radio"
+            aria-checked={appearance.corners === 'rounded'}
+            className={cls(appearance.corners === 'rounded' && 'on')}
+            onClick={() => setAppearance({ corners: 'rounded' })}
+          >
+            Rounded
+          </button>
+        </div>
+      </div>
+
+      <div className="setting-row">
+        <span className="setting-row-label">OLED mode</span>
+        <button
+          role="switch"
+          aria-checked={appearance.oled}
+          aria-label="OLED mode"
+          className={cls('switch', appearance.oled && 'on')}
+          disabled={mode === 'light'}
+          onClick={() => setAppearance({ oled: !appearance.oled })}
+        />
       </div>
     </div>
   );
