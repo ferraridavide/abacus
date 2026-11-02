@@ -16,6 +16,7 @@ import {
 } from './color.js';
 import { kickEmbeddings, similarityTo, textChanged } from './embeddings.js';
 import { bumpRevision } from './revision.js';
+import { storageTotal } from './storage.js';
 import { jxlPreviewsEnabled, jxlThumbsEnabled, kickJxlThumbs } from './thumbnails.js';
 
 const ITEM_COLUMNS = `
@@ -509,7 +510,8 @@ export function getStats() {
       'SELECT COUNT(*) n FROM items i WHERE deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM item_tags t WHERE t.item_id = i.id)'
     ),
     trash: one('SELECT COUNT(*) n FROM items WHERE deleted_at IS NOT NULL'),
-    totalSize: db.prepare('SELECT COALESCE(SUM(size),0) n FROM items WHERE deleted_at IS NULL').get().n,
+    // everything on disk, like the storage page; until the first walk is done, the files the items list
+    totalSize: storageTotal() ?? db.prepare('SELECT COALESCE(SUM(size),0) n FROM items WHERE deleted_at IS NULL').get().n,
   };
 }
 

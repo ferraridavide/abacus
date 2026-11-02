@@ -11,6 +11,7 @@ import { apiDocs } from './api-docs.js';
 import { kickEmbeddings } from './embeddings.js';
 import { backfillColorHistograms } from './library.js';
 import { kickJxlThumbs } from './thumbnails.js';
+import { kickStorageWalk } from './storage.js';
 import { findApiKey, migrateEnvironmentApiToken, recordApiKeyUse } from './api-keys.js';
 
 migrateEnvironmentApiToken();
@@ -135,3 +136,6 @@ backfillColorHistograms();
 
 // finish a JPEG XL thumbnail conversion the last run didn't get through
 kickJxlThumbs();
+
+// measure the disk the library takes, for the total next to the item count
+kickStorageWalk();

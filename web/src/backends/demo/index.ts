@@ -344,7 +344,8 @@ export async function createDemoBackend() {
           uncategorized: live.filter((r) => !r.folders.length).length,
           untagged: live.filter((r) => !r.tags.length).length,
           trash: items.size - live.length,
-          totalSize: live.reduce((n, r) => n + r.size, 0),
+          // everything the library takes, like the storage page
+          totalSize: (await settings.storageUsage()).total,
         },
         folders: listFolders(),
         tags: [...tags.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
