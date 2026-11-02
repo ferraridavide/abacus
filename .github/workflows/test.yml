@@ -1,5 +1,5 @@
-# Runs the server and web test suites. Pull requests run it directly; the release workflows
-# (docker.yml, demo.yml) call it and only publish when it passes.
+# Runs the server and web test suites. Pull requests run it directly; release.yml calls it
+# and only publishes when it passes.
 name: Test
 
 on:
