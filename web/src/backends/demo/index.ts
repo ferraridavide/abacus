@@ -4,10 +4,11 @@ import { COLOR_MIN_SCORE, colorScore, hexToRgb, parseColor, rgbToOklab } from '.
 import { openDemoDb } from './db';
 import { analyzeImage } from './media';
 import { seedLibrary } from './seed';
+import { createDemoSettings } from './settings';
 
 // The demo backend: the whole library lives in this browser. Records and files are kept in IndexedDB, and the
 // queries the server runs in SQL run here over the records in memory. What only the server can do — fetching
-// links, reading Are.na exports, import providers, semantic search — rejects with an UnavailableError.
+// links, reading Are.na exports — rejects with an UnavailableError; its settings pages are made up (settings.ts).
 
 /** An item as it's stored: the served item without URLs, plus what queries need. */
 interface ItemRecord extends Omit<Item, 'fileUrl' | 'thumbUrl'> {
@@ -77,6 +78,8 @@ export async function createDemoBackend() {
   const folders = new Map<string, FolderRecord>();
   /** object URLs of the stored blobs, by blob key */
   const urls = new Map<string, string>();
+  /** and their sizes, for the storage page */
+  const sizes = new Map<string, number>();
   let seq = 0;
 
   for (const r of await db.all<ItemRecord>('items')) {
@@ -84,7 +87,10 @@ export async function createDemoBackend() {
     seq = Math.max(seq, r.seq);
   }
   for (const f of await db.all<FolderRecord>('folders')) folders.set(f.id, f);
-  for (const [key, blob] of await db.entries<Blob>('blobs')) urls.set(key, URL.createObjectURL(blob));
+  for (const [key, blob] of await db.entries<Blob>('blobs')) {
+    urls.set(key, URL.createObjectURL(blob));
+    sizes.set(key, blob.size);
+  }
 
   const fileKey = (id: string) => `${id}/file`;
   const thumbKey = (id: string) => `${id}/thumb`;
@@ -94,6 +100,7 @@ export async function createDemoBackend() {
     const old = urls.get(key);
     if (old) URL.revokeObjectURL(old);
     urls.set(key, URL.createObjectURL(blob));
+    sizes.set(key, blob.size);
   };
   const saveItem = (r: ItemRecord) => db.put('items', r.id, r);
   const saveFolder = (f: FolderRecord) => db.put('folders', f.id, f);
@@ -248,6 +255,7 @@ export async function createDemoBackend() {
       const url = urls.get(k);
       if (url) URL.revokeObjectURL(url);
       urls.delete(k);
+      sizes.delete(k);
     }
     for (const id of ids) items.delete(id);
     await db.remove('blobs', keys);
@@ -290,6 +298,29 @@ export async function createDemoBackend() {
     await saveFolder(f);
     return folderOut(id);
   }
+
+  // ---------- settings ----------
+
+  const settings = await createDemoSettings(db, () => {
+    const all = [...items.values()];
+    const sum = (keys: string[]) => keys.reduce((n, k) => n + (sizes.get(k) ?? 0), 0);
+    const withFile = all.filter((r) => r.hasFile);
+    const withThumb = all.filter((r) => r.hasThumb);
+    // thumbnails are 720 pixels wide (media.ts); only images wider than that get a preview
+    const previewable = withFile.filter((r) => r.type === 'image' && (r.width ?? 0) > 720);
+    const hasText = (r: ItemRecord) => !!(r.text || r.description || r.notes || r.tags.length);
+    return {
+      files: { bytes: sum(withFile.map((r) => fileKey(r.id))), count: withFile.length },
+      thumbs: { bytes: sum(withThumb.map((r) => thumbKey(r.id))), count: withThumb.length },
+      previewable: { bytes: sum(previewable.map((r) => fileKey(r.id))), count: previewable.length },
+      records: { bytes: JSON.stringify([...all, ...folders.values()]).length, count: all.length + folders.size },
+      embeddable: {
+        images: withThumb.length,
+        texts: all.filter(hasText).length,
+        total: all.filter((r) => r.hasThumb || hasText(r)).length,
+      },
+    };
+  });
 
   // ---------- the backend ----------
 
@@ -451,27 +482,7 @@ export async function createDemoBackend() {
     job: () => Promise.reject(new Error('Not found')),
     // no providers: the import dialog just lists the built-in sources
     importSources: async () => ({ providers: [] }),
-    apiKeys: () => unavailable('Managing API keys'),
-    createApiKey: () => unavailable('Managing API keys'),
-    deleteApiKey: () => unavailable('Managing API keys'),
-    providerSettings: () => unavailable('Setting up import providers'),
-    updateProvider: () => unavailable('Setting up import providers'),
-    testProvider: () => unavailable('Setting up import providers'),
-
-    // semantic search needs an embeddings service; it reads as off, and setting it up is unavailable
-    embeddingSettings: () => unavailable('Semantic search'),
-    updateEmbeddings: () => unavailable('Semantic search'),
-    testEmbeddings: () => unavailable('Semantic search'),
-    embeddingStatus: async () => ({ state: 'off', total: 0, done: 0, failed: 0, pending: 0, images: 0, texts: 0, error: null }),
-    reprocessEmbeddings: () => unavailable('Semantic search'),
-    itemEmbedding: async () => ({ state: 'off', parts: [] }),
-    reprocessItemEmbedding: () => unavailable('Semantic search'),
-
-    storageUsage: () => unavailable('Measuring storage'),
-
-    // thumbnails are made in the browser, as webp
-    thumbnailSettings: async () => ({ jxl: false, previews: true, state: 'off', total: 0, processed: 0, failed: 0, lastFailure: null }),
-    updateThumbnails: () => unavailable('Converting thumbnails to JPEG XL'),
+    ...settings,
   };
 
   // a first visit starts with a small sample library, so there's something to look at
