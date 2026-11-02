@@ -5,6 +5,7 @@ import type { Item } from '../types';
 import { computeLayout, GAP, type Box } from '../lib/layout';
 import { itemMeta } from '../lib/format';
 import { cls, useCompact } from './ui';
+import { originalSharper, Thumb, useSettled } from './Thumb';
 
 type Mode = 'masonry' | 'grid' | 'free';
 type Point = { x: number; y: number };
@@ -24,6 +25,44 @@ function visualOf(item: Item) {
   if (item.thumbUrl) return item.thumbUrl;
   if (item.type === 'image' || item.type === 'gif') return item.fileUrl;
   return null;
+}
+
+/**
+ * A board tile's picture: the thumbnail, and the original faded in over it once zooming in shows the thumbnail bigger
+ * than its pixels. `tile` is the tile's size on screen, at the current zoom.
+ */
+function BoardImage({ item, src, tile, fit }: { item: Item; src: string; tile: { w: number; h: number }; fit: 'cover' | 'contain' }) {
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  const [originalLoaded, setOriginalLoaded] = useState(false);
+  // settling keeps a zoom gesture passing through from fetching originals; once fetched, they stay
+  const showOriginal = useSettled(!!natural && originalSharper(item, natural, tile, fit), 250);
+  const style = { background: item.palette[0]?.hex };
+  return (
+    <>
+      {src === item.thumbUrl ? (
+        <Thumb
+          item={item}
+          alt={item.name}
+          loading="lazy"
+          decoding="async"
+          style={style}
+          onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+        />
+      ) : (
+        <img src={src} alt={item.name} draggable={false} loading="lazy" decoding="async" style={style} />
+      )}
+      {showOriginal && (
+        <img
+          src={item.fileUrl!}
+          alt=""
+          draggable={false}
+          decoding="async"
+          className={cls('original', originalLoaded && 'loaded')}
+          onLoad={() => setOriginalLoaded(true)}
+        />
+      )}
+    </>
+  );
 }
 
 /**
@@ -47,6 +86,14 @@ export function Board() {
   const [zOrder, setZOrder] = useState<string[]>([]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [panning, setPanning] = useState(false);
+  // promoted to its own layer only while the view moves: a layer keeps the bitmap it was drawn at, so leaving it on
+  // would show a zoomed-in board as an enlarged low-resolution picture of itself
+  const [moving, setMoving] = useState(false);
+  useEffect(() => {
+    setMoving(true);
+    const timer = setTimeout(() => setMoving(false), 150);
+    return () => clearTimeout(timer);
+  }, [view]);
 
   const byId = useMemo(() => new Map(allItems.map((item) => [item.id, item])), [allItems]);
   const items = useMemo(
@@ -353,7 +400,8 @@ export function Board() {
         <div
           className="board-world"
           style={{
-            transform: `translate3d(${view.x}px, ${view.y}px, 0) scale(${view.s})`,
+            transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})`,
+            willChange: moving ? 'transform' : undefined,
             visibility: ready ? 'visible' : 'hidden',
           }}
         >
@@ -386,13 +434,11 @@ export function Board() {
                   openViewer(item);
                 }}
               >
-                <img
+                <BoardImage
+                  item={item}
                   src={src}
-                  alt={item.name}
-                  draggable={false}
-                  loading="lazy"
-                  decoding="async"
-                  style={{ background: item.palette[0]?.hex }}
+                  tile={{ w: box.w * view.s, h: box.h * view.s }}
+                  fit={mode === 'grid' ? 'cover' : 'contain'}
                 />
                 <div className="board-item-info">
                   <div className="bi-name" title={item.name}>

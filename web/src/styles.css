@@ -2158,7 +2158,6 @@ picture {
   left: 0;
   top: 0;
   transform-origin: 0 0;
-  will-change: transform;
 }
 .board-item {
   position: absolute;
@@ -2185,6 +2184,15 @@ picture {
 }
 .board-item.grid img {
   object-fit: cover;
+}
+.board-item img.original {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.board-item img.original.loaded {
+  opacity: 1;
 }
 .board-item-info {
   position: absolute;

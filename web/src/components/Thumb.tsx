@@ -38,7 +38,17 @@ export function needsOriginal(
   tile: { w: number; h: number },
   fit: 'cover' | 'contain'
 ) {
-  if (!item.thumbJxlUrl || item.type !== 'image' || !item.fileUrl || !WEB_IMAGE_EXTS.has(item.ext ?? '')) return false;
+  return !!item.thumbJxlUrl && originalSharper(item, natural, tile, fit);
+}
+
+/** True when `tile` (in screen pixels) shows the thumbnail stretched and the original has more pixels to show. */
+export function originalSharper(
+  item: Item,
+  natural: { w: number; h: number },
+  tile: { w: number; h: number },
+  fit: 'cover' | 'contain'
+) {
+  if (item.type !== 'image' || !item.fileUrl || !WEB_IMAGE_EXTS.has(item.ext ?? '')) return false;
   if (!item.width || item.width <= natural.w * STRETCH) return false;
   const scale = (fit === 'cover' ? Math.max : Math.min)(tile.w / natural.w, tile.h / natural.h);
   return scale * (window.devicePixelRatio || 1) > STRETCH;
