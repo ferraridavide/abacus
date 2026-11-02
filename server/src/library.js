@@ -16,6 +16,8 @@ import {
 } from './color.js';
 import { kickEmbeddings, similarityTo, textChanged } from './embeddings.js';
 import { bumpRevision } from './revision.js';
+import { storageTotal } from './storage.js';
+import { jxlPreviewsEnabled, jxlThumbsEnabled, kickJxlThumbs } from './thumbnails.js';
 
 const ITEM_COLUMNS = `
   i.*,
@@ -33,6 +35,9 @@ export function serializeItem(row) {
     mime: row.mime,
     fileUrl: row.file ? '/files/' + row.file.split('/').map(encodeURIComponent).join('/') : null,
     thumbUrl: row.thumb ? '/thumbs/' + row.thumb + '?v=' + row.updated_at : null,
+    // only while the setting is on, so turning it off takes effect before the files are gone
+    thumbJxlUrl: row.thumb_jxl && jxlThumbsEnabled() ? '/thumbs/' + row.thumb_jxl : null,
+    previewJxlUrl: row.preview_jxl && jxlPreviewsEnabled() ? '/thumbs/' + row.preview_jxl : null,
     width: row.width,
     height: row.height,
     duration: row.duration,
@@ -178,6 +183,7 @@ export async function addItem(input) {
   });
   bumpRevision();
   kickEmbeddings();
+  kickJxlThumbs();
   return getItem(id);
 }
 
@@ -504,7 +510,8 @@ export function getStats() {
       'SELECT COUNT(*) n FROM items i WHERE deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM item_tags t WHERE t.item_id = i.id)'
     ),
     trash: one('SELECT COUNT(*) n FROM items WHERE deleted_at IS NOT NULL'),
-    totalSize: db.prepare('SELECT COALESCE(SUM(size),0) n FROM items WHERE deleted_at IS NULL').get().n,
+    // everything on disk, like the storage page; until the first walk is done, the files the items list
+    totalSize: storageTotal() ?? db.prepare('SELECT COALESCE(SUM(size),0) n FROM items WHERE deleted_at IS NULL').get().n,
   };
 }
 
@@ -571,7 +578,7 @@ export function batch({ ids = [], action, tags = [], folderId, fromFolderId }) {
           db.prepare('UPDATE items SET deleted_at = NULL, updated_at = ? WHERE id = ?').run(now, id);
           break;
         case 'delete': {
-          const row = db.prepare('SELECT file, thumb FROM items WHERE id = ?').get(id);
+          const row = db.prepare('SELECT file, thumb, thumb_jxl, preview_jxl FROM items WHERE id = ?').get(id);
           if (row) removedFiles.push({ id, ...row });
           db.prepare('DELETE FROM items WHERE id = ?').run(id);
           break;
@@ -619,9 +626,11 @@ export function emptyTrash() {
   return batch({ ids, action: 'delete' });
 }
 
-function removeItemFiles({ id, thumb }) {
+function removeItemFiles({ id, thumb, thumb_jxl, preview_jxl }) {
   fs.rmSync(path.join(paths.files, id), { recursive: true, force: true });
   if (thumb) fs.rmSync(path.join(paths.thumbs, thumb), { force: true });
+  if (thumb_jxl) fs.rmSync(path.join(paths.thumbs, thumb_jxl), { force: true });
+  if (preview_jxl) fs.rmSync(path.join(paths.thumbs, preview_jxl), { force: true });
 }
 
 // ---------- folders ----------

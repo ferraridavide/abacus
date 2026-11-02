@@ -14,6 +14,8 @@ import type {
   SearchScore,
   Stats,
   TagCount,
+  StorageUsage,
+  ThumbnailSettings,
 } from './types';
 
 export type BatchAction =
@@ -68,6 +70,9 @@ export interface Backend {
   embeddingStatus(): Promise<EmbeddingStatus>;
   reprocessEmbeddings(): Promise<EmbeddingStatus>;
   itemEmbedding(id: string): Promise<ItemEmbedding>;
+  storageUsage(): Promise<StorageUsage>;
+  thumbnailSettings(): Promise<ThumbnailSettings>;
+  updateThumbnails(body: { jxl?: boolean; previews?: boolean }): Promise<ThumbnailSettings>;
   reprocessItemEmbedding(id: string): Promise<ItemEmbedding>;
   job(id: string): Promise<Job>;
   /** Resolves to null when the zip isn't an Are.na export. */

@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { useStore } from '../store';
 import type { Item } from '../types';
 import { cls } from './ui';
+import { Thumb, useJxlSupport, useProgressiveThumb } from './Thumb';
 import {
   FIT_TRANSFORM,
   MIN_VIEW_SCALE,
@@ -19,6 +20,8 @@ import {
   type Point,
   type Size,
 } from '../lib/imageZoom';
+
+const BLANK = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
 
 interface Gesture {
   start: Point;
@@ -39,7 +42,19 @@ function pointerDistance(points: Point[]) {
 export function ZoomImage({ item }: { item: Item }) {
   const [transform, setTransform] = useState(FIT_TRANSFORM);
   const [box, setBox] = useState<Size | null>(null);
-  const [natural, setNatural] = useState<Size | null>(null);
+  // The library knows the original's size, so the image can be laid out, zoomed and panned before it has loaded:
+  // meanwhile the thumbnail (and preview) stand in for it, under the same transform.
+  const [natural, setNatural] = useState<Size | null>(() =>
+    item.width && item.height ? { w: item.width, h: item.height } : null
+  );
+  const [originalLoaded, setOriginalLoaded] = useState(false);
+  const progressive = useProgressiveThumb(item);
+  // With JPEG XL on, a screen-sized progressive preview sharpens over the thumbnail before the original arrives. The
+  // original waits for it (and for knowing whether the browser decodes it), so the two don't split the bandwidth.
+  const jxl = useJxlSupport();
+  const [previewDone, setPreviewDone] = useState(false);
+  const showPreview = jxl === true && !!item.previewJxlUrl;
+  const holdOriginal = !!item.previewJxlUrl && jxl !== false && !previewDone;
   const [dragging, setDragging] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const transformRef = useRef(transform);
@@ -90,9 +105,9 @@ export function ZoomImage({ item }: { item: Item }) {
     return () => element.removeEventListener('wheel', onWheel);
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = ref.current!;
-    const observer = new ResizeObserver(() => {
+    const layOut = () => {
       const original = naturalRef.current;
       if (!original) return;
       const next = fittedBox(bounds(), original);
@@ -105,9 +120,26 @@ export function ZoomImage({ item }: { item: Item }) {
       const current = transformRef.current;
       const scale = clampScale(current.scale * previous.w / next.w, original.w / next.w);
       updateTransform({ scale, ...clampPan(current, scale, next, bounds()) });
-    });
+    };
+    // laid out right away when the size is known up front, so the zoom works from the first frame
+    layOut();
+    const observer = new ResizeObserver(layOut);
     observer.observe(element);
     return () => observer.disconnect();
+  }, []);
+
+  // Moving to another item unmounts this one, but a detached <img> keeps downloading. Pointing every image at an empty
+  // one drops the browser's last use of the old URL, which cancels its request.
+  useEffect(() => {
+    const element = ref.current!;
+    return () => {
+      // only once it has really left the page (StrictMode also runs this cleanup on a mounted component)
+      setTimeout(() => {
+        if (element.isConnected) return;
+        for (const source of element.querySelectorAll('source')) source.srcset = '';
+        for (const image of element.querySelectorAll('img')) image.src = BLANK;
+      });
+    };
   }, []);
 
   useEffect(() => {
@@ -212,7 +244,11 @@ export function ZoomImage({ item }: { item: Item }) {
   const onLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
     const image = event.currentTarget;
     if (!image.naturalWidth) return;
+    setOriginalLoaded(true);
     const original = { w: image.naturalWidth, h: image.naturalHeight };
+    const known = naturalRef.current;
+    // usually the stored size was right and the zoom carries on; otherwise lay the image out again
+    if (known && known.w === original.w && known.h === original.h && boxRef.current) return;
     naturalRef.current = original;
     boxRef.current = fittedBox(bounds(), original);
     setNatural(original);
@@ -224,6 +260,14 @@ export function ZoomImage({ item }: { item: Item }) {
   const atFit = isAtFit(transform);
   const loaded = !!natural && !!box;
   const limits = loaded ? panLimits(transform.scale, box, bounds()) : { x: 0, y: 0 };
+  // every layer is laid out and zoomed alike, so the original takes over from the stand-ins in place
+  const layout: React.CSSProperties = {
+    width: box?.w,
+    height: box?.h,
+    maxWidth: box ? 'none' : '100%',
+    maxHeight: box ? 'none' : '100%',
+    transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+  };
   const pannable = limits.x > 0 || limits.y > 0;
   return (
     <div
@@ -237,21 +281,27 @@ export function ZoomImage({ item }: { item: Item }) {
       onClick={(event) => { if (suppressClick.current) event.stopPropagation(); }}
       onDoubleClick={onDoubleClick}
     >
-      {!loaded && item.thumbUrl && <img className="zoom-img placeholder" src={item.thumbUrl} alt="" draggable={false} />}
+      {!originalLoaded && item.thumbUrl && (
+        <Thumb item={item} className={cls('zoom-img placeholder', progressive && 'progressive')} style={layout} />
+      )}
+      {!originalLoaded && showPreview && (
+        <img
+          className="zoom-img placeholder progressive"
+          src={item.previewJxlUrl!}
+          alt=""
+          draggable={false}
+          style={layout}
+          onLoad={() => setPreviewDone(true)}
+          onError={() => setPreviewDone(true)}
+        />
+      )}
       <img
         className="zoom-img"
-        src={item.fileUrl!}
+        src={holdOriginal ? undefined : item.fileUrl!}
         alt={item.name}
         draggable={false}
         onLoad={onLoad}
-        style={{
-          width: box?.w,
-          height: box?.h,
-          maxWidth: box ? 'none' : '100%',
-          maxHeight: box ? 'none' : '100%',
-          transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-          opacity: loaded ? 1 : 0,
-        }}
+        style={{ ...layout, opacity: originalLoaded ? 1 : 0 }}
       />
       <div
         className="zoom-controls"

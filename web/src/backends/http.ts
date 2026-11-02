@@ -14,6 +14,8 @@ import type {
   SearchScore,
   Stats,
   TagCount,
+  StorageUsage,
+  ThumbnailSettings,
 } from '../types';
 import type { Backend, BatchAction } from '../api';
 
@@ -76,6 +78,9 @@ export const httpBackend: Backend = {
   reprocessEmbeddings: () => request<EmbeddingStatus>('POST', '/api/embeddings/reprocess'),
   itemEmbedding: (id: string) => request<ItemEmbedding>('GET', `/api/items/${id}/embedding`),
   reprocessItemEmbedding: (id: string) => request<ItemEmbedding>('POST', `/api/items/${id}/embedding`),
+  storageUsage: () => request<StorageUsage>('GET', '/api/settings/storage'),
+  thumbnailSettings: () => request<ThumbnailSettings>('GET', '/api/settings/thumbnails'),
+  updateThumbnails: (body: { jxl?: boolean; previews?: boolean }) => request<ThumbnailSettings>('PATCH', '/api/settings/thumbnails', body),
   job: (id: string) => request<Job>('GET', `/api/jobs/${id}`),
   /** Returns null when the zip isn't an Are.na export. */
   importArena: async (file: File, folderId?: string): Promise<Job | null> => {

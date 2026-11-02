@@ -1,17 +1,23 @@
 import { useState, type ReactNode } from 'react';
-import { CloudDownload, KeyRound, MousePointer2, Palette, PauseCircle, PlayCircle, Play, Plus, Sparkles } from 'lucide-react';
+import {
+  CloudDownload, HardDrive, Image as ImageIcon, KeyRound, MousePointer2, Palette, PauseCircle, PlayCircle, Play, Plus, Sparkles,
+} from 'lucide-react';
 import { useStore } from '../store';
 import type { AutoplayMode } from '../types';
 import { SemanticSearchSettings } from './SemanticSearchSettings';
+import { ThumbnailSettings } from './ThumbnailSettings';
+import { StorageSettings } from './StorageSettings';
 import { ImportSourcesSettings, ProviderDetail, useProviderSettings } from './ProviderSettings';
 import { IntegrationSettings } from './IntegrationSettings';
 import { cls, DialogHead, Modal, PageLink, usePhone } from './ui';
 
-type Section = 'playback' | 'appearance' | 'sources' | 'search' | 'integration';
+type Section = 'playback' | 'appearance' | 'thumbnails' | 'storage' | 'sources' | 'search' | 'integration';
 
 const SECTIONS: { key: Section; label: string; desc: string; icon: ReactNode }[] = [
   { key: 'playback', label: 'Playback', desc: 'Autoplay of videos and GIFs', icon: <Play size={15} /> },
   { key: 'appearance', label: 'Appearance', desc: 'Theme, accent and corners', icon: <Palette size={15} /> },
+  { key: 'thumbnails', label: 'Thumbnails', desc: 'Progressive JPEG XL previews', icon: <ImageIcon size={15} /> },
+  { key: 'storage', label: 'Storage', desc: 'Disk space used by the library', icon: <HardDrive size={15} /> },
   { key: 'sources', label: 'Import sources', desc: 'Providers that download media', icon: <CloudDownload size={15} /> },
   { key: 'search', label: 'Semantic search', desc: 'Find anything by what it is about', icon: <Sparkles size={15} /> },
   { key: 'integration', label: 'Integration', desc: 'API keys and documentation', icon: <KeyRound size={15} /> },
@@ -73,6 +79,8 @@ function SettingsInner() {
           )}
           {section === 'playback' && <PlaybackSettings />}
           {section === 'appearance' && <AppearanceSettings />}
+          {section === 'thumbnails' && <ThumbnailSettings />}
+          {section === 'storage' && <StorageSettings />}
           {section === 'search' && <SemanticSearchSettings />}
           {section === 'integration' && <IntegrationSettings />}
           {section === 'sources' &&

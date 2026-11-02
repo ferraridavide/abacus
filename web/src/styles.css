@@ -989,7 +989,12 @@ a {
   outline-offset: -2px;
   box-shadow: none;
 }
+/* a thumbnail's <picture> (JPEG XL with a webp fallback) only picks the source; its <img> is laid out as if alone */
+picture {
+  display: contents;
+}
 .thumb > img,
+.thumb > picture > img,
 .thumb > video {
   position: absolute;
   inset: 0;
@@ -1000,10 +1005,12 @@ a {
   transition: opacity 0.35s ease, transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .thumb > img.loaded,
+.thumb > picture > img.loaded,
 .thumb > video.loaded {
   opacity: 1;
 }
 .card:hover .thumb > img,
+.card:hover .thumb > picture > img,
 .card:hover .thumb > video {
   transform: none;
 }
@@ -2187,6 +2194,9 @@ a {
   cursor: grab;
   touch-action: none;
   user-select: none;
+  -webkit-user-select: none;
+  /* a long press shouldn't pop up the image's save/share menu mid-gesture */
+  -webkit-touch-callout: none;
   background-color: var(--stage);
   background-image: radial-gradient(var(--stage-dot) 1px, transparent 1px);
   background-size: 22px 22px;
@@ -2199,7 +2209,6 @@ a {
   left: 0;
   top: 0;
   transform-origin: 0 0;
-  will-change: transform;
 }
 .board-item {
   position: absolute;
@@ -2226,6 +2235,15 @@ a {
 }
 .board-item.grid img {
   object-fit: cover;
+}
+.board-item img.original {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.board-item img.original.loaded {
+  opacity: 1;
 }
 .board-item-info {
   position: absolute;
@@ -2457,6 +2475,10 @@ a {
   filter: blur(8px);
   width: 100%;
   height: 100%;
+}
+/* a progressive JPEG XL thumbnail sharpens as it arrives; blurring it would hide that */
+.zoom-img.placeholder.progressive {
+  filter: none;
 }
 .zoom-controls {
   position: absolute;
@@ -3713,6 +3735,7 @@ a {
     -webkit-touch-callout: none;
   }
   .card:hover .thumb > img,
+  .card:hover .thumb > picture > img,
   .card:hover .thumb > video {
     transform: none;
   }
@@ -3849,6 +3872,116 @@ a {
   color: var(--text-faint);
   font-size: 12px;
   line-height: 1.45;
+}
+
+.thumb-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+}
+.thumb-option-text {
+  flex: 1;
+  min-width: 0;
+}
+.thumb-option-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+.thumb-option-text p {
+  margin: 2px 0 0;
+  color: var(--text-faint);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.thumb-option-text p + p {
+  margin-top: 6px;
+}
+
+/* storage usage: one colour per kind of file, shared by the bar and the list */
+.s-files { --storage: var(--accent); }
+.s-db { --storage: var(--text-faint); }
+.s-thumbs { --storage: var(--ok); }
+.s-webp { --storage: var(--ok); }
+.s-jxl { --storage: color-mix(in srgb, var(--ok) 62%, var(--bg)); }
+.s-preview { --storage: color-mix(in srgb, var(--ok) 34%, var(--bg)); }
+.storage-bar {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--track);
+}
+.storage-segment {
+  flex-basis: 0;
+  /* a sliver of a part still shows */
+  min-width: 3px;
+  background: var(--storage);
+  transition: flex-grow 0.4s ease;
+}
+.storage-list {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 16px;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+}
+.storage-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto 44px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  font-size: 13px;
+}
+.storage-row + .storage-row {
+  border-top: 1px solid var(--border);
+}
+.storage-row.group {
+  font-weight: 600;
+}
+.storage-row.nested {
+  padding-left: 18px;
+}
+.storage-row.nested + .storage-row.nested,
+.storage-row.group + .storage-row.nested {
+  border-top: none;
+}
+.storage-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--r-xs);
+  background: var(--storage);
+}
+.storage-row.group .storage-dot {
+  background: transparent;
+  border: 1.5px solid var(--storage);
+}
+.storage-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+  min-width: 0;
+}
+.storage-count {
+  color: var(--text-faint);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.storage-bytes,
+.storage-share {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.storage-share {
+  color: var(--text-faint);
+  font-size: 12px;
 }
 
 .semantic-status {

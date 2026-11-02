@@ -31,6 +31,8 @@ export const schemas = {
   Item: object({
     id: string, name: string, type: itemType, ext: nullableString, mime: nullableString,
     fileUrl: nullableString, thumbUrl: nullableString,
+    thumbJxlUrl: { ...nullableString, description: 'Progressive JPEG XL thumbnail, while that setting is on and it has been made.' },
+    previewJxlUrl: { ...nullableString, description: 'Screen-sized progressive JPEG XL preview of an image bigger than its thumbnail, while that setting is on.' },
     width: nullableNumber, height: nullableNumber, duration: nullableNumber, size: number,
     palette: array(object({ hex: string, ratio: number })),
     url: nullableString, mediaUrl: nullableString, source,
@@ -168,6 +170,27 @@ export const schemas = {
     total: integer, done: integer, failed: integer, pending: integer, images: integer, texts: integer,
     error: nullableString, lastFailure: nullableString,
   }),
+  ThumbnailSettings: object({
+    jxl: boolean, previews: boolean,
+    state: { type: 'string', enum: ['off', 'running', 'complete'] },
+    total: integer, processed: integer, failed: integer, lastFailure: nullableString,
+  }, ['jxl', 'previews', 'state', 'total', 'processed', 'failed']),
+  ThumbnailSettingsPatch: object({
+    jxl: { type: 'boolean', description: 'Turning it on computes every JPEG XL thumbnail again; turning it off deletes them.' },
+    previews: { type: 'boolean', description: 'Screen-sized JPEG XL previews for the full-screen viewer, while JPEG XL thumbnails are on. Turning it off deletes them.' },
+  }),
+  StorageUsage: (() => {
+    const part = (description) => ({ ...object({ bytes: integer, count: integer }, ['bytes', 'count']), description });
+    return object({
+      total: { ...integer, description: 'Bytes, all parts together.' },
+      db: part('The SQLite database, with its write-ahead log.'),
+      files: part('Original files.'),
+      webp: part('WebP thumbnails.'),
+      jxl: part('Progressive JPEG XL thumbnails.'),
+      preview: part('Screen-sized progressive JPEG XL previews.'),
+      disk: { ...object({ size: integer, free: integer }), nullable: true, description: 'The disk holding the data directory, in bytes.' },
+    }, ['total', 'db', 'files', 'webp', 'jxl', 'preview', 'disk']);
+  })(),
   ItemEmbedding: object({
     state: { type: 'string', enum: ['off', 'pending', 'done', 'failed'] }, model: string,
     parts: array(object({

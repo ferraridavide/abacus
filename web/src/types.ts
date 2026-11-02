@@ -14,6 +14,10 @@ export interface Item {
   mime: string | null;
   fileUrl: string | null;
   thumbUrl: string | null;
+  /** Progressive JPEG XL thumbnail, while that setting is on and it has been made. */
+  thumbJxlUrl?: string | null;
+  /** Screen-sized progressive JPEG XL preview of an image bigger than its thumbnail, under the same setting. */
+  previewJxlUrl?: string | null;
   width: number | null;
   height: number | null;
   duration: number | null;
@@ -117,6 +121,34 @@ export interface ProviderTest {
 }
 
 /** Background embedding of the library, for semantic search. */
+export interface StorageUsage {
+  /** bytes, all parts together */
+  total: number;
+  db: { bytes: number; count: number };
+  /** original files */
+  files: { bytes: number; count: number };
+  webp: { bytes: number; count: number };
+  jxl: { bytes: number; count: number };
+  /** screen-sized JPEG XL previews */
+  preview: { bytes: number; count: number };
+  /** the disk holding the library */
+  disk: { size: number; free: number } | null;
+}
+
+export interface ThumbnailSettings {
+  /** progressive JPEG XL thumbnails, next to the webp ones */
+  jxl: boolean;
+  /** screen-sized JPEG XL previews for the full-screen viewer, while `jxl` is on */
+  previews: boolean;
+  state: 'off' | 'running' | 'complete';
+  /** items with a thumbnail */
+  total: number;
+  /** of those, ones whose JPEG XL thumbnail (and preview, when on) is made or failed */
+  processed: number;
+  failed: number;
+  lastFailure: string | null;
+}
+
 export interface EmbeddingStatus {
   /** 'error': the service can't be reached; it's tried again every minute */
   state: 'off' | 'running' | 'complete' | 'error';
