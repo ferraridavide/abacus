@@ -36,6 +36,10 @@ The options page opens on install.
 **Save and test** saves the settings and checks the connection. Settings stay in this browser profile
 (`chrome.storage.local`) and aren't synced to your Google account.
 
+The popup, the options page and the page tools follow the theme of the server you connect to: the corners and the
+accent colour come from **Settings → Appearance** in Abacus. The connection test pulls it as soon as it succeeds,
+and every popup open refreshes it, so a theme change in the app lands in the extension without reinstalling.
+
 ## Use
 
 - **Toolbar popup**: edit the folder, tags, title, or note, then **Save to Abacus**. The title is filled with the

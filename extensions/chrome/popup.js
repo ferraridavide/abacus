@@ -1,4 +1,5 @@
 import { addToAbacus, getConfig, parseTagList } from './lib.js';
+import { initTheme } from './theme.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -130,6 +131,8 @@ $('form').addEventListener('submit', async (event) => {
     setButton('idle', 'Save to Abacus');
   }
 });
+
+initTheme().catch(() => {});
 
 init().catch(() => {
   showFieldError('url', 'Could not load settings. Reopen the popup to try again.');

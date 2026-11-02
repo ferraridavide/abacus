@@ -95,13 +95,21 @@
     S.dismiss?.();
     const host = doc.createElement('div');
     host.style.cssText = 'all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none';
+    // The overlay wears the library's theme too: default now, corrected when the cached theme arrives.
+    const themeKit = globalThis.AbacusTheme;
+    if (themeKit) {
+      themeKit.apply(themeKit.normalize(null), host);
+      chrome.storage.local.get('theme')
+        .then(({ theme }) => { if (host.isConnected) themeKit.apply(themeKit.normalize(theme), host); })
+        .catch(() => {});
+    }
     const shadow = host.attachShadow({ mode: 'closed' });
     shadow.innerHTML = `<style>
       .shade{position:fixed;inset:0;background:rgba(10,11,14,.35);cursor:crosshair;pointer-events:none}
-      .box{position:fixed;display:none;border:2px solid #5b8cff;border-radius:2px;box-shadow:0 0 0 99999px rgba(10,11,14,.45);pointer-events:none}
-      .tip{position:fixed;left:50%;top:14px;transform:translateX(-50%);padding:7px 12px;border-radius:8px;background:#18191d;color:#ececef;
+      .box{position:fixed;display:none;border:2px solid var(--accent);border-radius:var(--r-sm);box-shadow:0 0 0 99999px rgba(10,11,14,.45);pointer-events:none}
+      .tip{position:fixed;left:50%;top:14px;transform:translateX(-50%);padding:8px 12px;border-radius:var(--r-md);background:var(--panel);color:var(--text);
         font:12px/1.4 system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.4);pointer-events:none}
-      .size{position:fixed;display:none;padding:2px 6px;border-radius:5px;background:#5b8cff;color:#fff;font:11px/1.4 system-ui,sans-serif;pointer-events:none}
+      .size{position:fixed;display:none;padding:2px 6px;border-radius:var(--r-xs);background:var(--accent);color:var(--accent-ink);font:11px/1.4 system-ui,sans-serif;pointer-events:none}
     </style><div class="shade"></div><div class="box"></div><div class="size"></div>
     <div class="tip">${mode === 'element' ? 'Click an element to capture it · ↑ parent · Esc to cancel' : 'Drag to choose an area · Esc to cancel'}</div>`;
     (doc.body || root).append(host);

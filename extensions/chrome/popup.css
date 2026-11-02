@@ -16,10 +16,10 @@ input, textarea { font-size: 13px; }
 #save { min-height: 36px; margin-top: 4px; }
 
 .field-error { color: var(--danger); font-size: 11px; overflow-wrap: anywhere; }
-.field-error.warn { color: #fcc419; }
+.field-error.warn { color: var(--accent-text); }
 [aria-invalid="true"], [aria-invalid="true"]:focus {
   border-color: var(--danger);
-  box-shadow: 0 0 0 3px rgba(255, 95, 95, 0.1);
+  box-shadow: 0 0 0 1px var(--danger);
 }
 label:has([aria-invalid="true"]) > span { color: var(--danger); }
 #save[data-state="saving"]::before,
@@ -27,9 +27,9 @@ label:has([aria-invalid="true"]) > span { color: var(--danger); }
   content: '';
   width: 13px;
   height: 13px;
-  border: 1.5px solid rgba(255, 255, 255, 0.35);
-  border-top-color: #fff;
-  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--on-primary) 35%, transparent);
+  border-top-color: var(--on-primary);
+  border-radius: var(--r-circle);
   animation: connection-spin 0.9s linear infinite;
 }
 #save[data-state="saved"], #save[data-state="warning"] { opacity: 1; }

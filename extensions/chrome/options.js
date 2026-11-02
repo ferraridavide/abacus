@@ -1,4 +1,5 @@
 import { apiFetch, getConfig, normalizeServerUrl, originPattern, setConfig } from './lib.js';
+import { initTheme, syncTheme } from './theme.js';
 
 const $ = (id) => document.getElementById(id);
 const FIELDS = ['serverUrl', 'token', 'username', 'password', 'folder', 'tags'];
@@ -47,6 +48,8 @@ async function save() {
     setStatus('Connecting…');
     try {
       await apiFetch(config, '/api/bootstrap');
+      // the extension wears the library's theme, so pull it as soon as the connection works
+      await syncTheme(config);
       setStatus('Connected', 'ok', 'Settings saved.');
     } catch (err) {
       setStatus('Connection failed', 'error', `Settings saved. ${err.message}`);
@@ -171,6 +174,8 @@ $('change-shortcut').addEventListener('click', async () => {
 });
 window.addEventListener('focus', refreshShortcut);
 refreshShortcut();
+
+initTheme().catch(() => {});
 
 (async () => {
   const config = await getConfig();

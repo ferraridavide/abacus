@@ -1,4 +1,5 @@
 import { getConfig, mediaPayload, parseTagList, rememberFolder, submitToAbacus, waitForJob } from './lib.js';
+import { initTheme } from './theme.js';
 
 const $ = (id) => document.getElementById(id);
 const FILTER_KEY = 'abacus-batch-filter';
@@ -232,5 +233,7 @@ $('select-none').addEventListener('click', () => {
   refresh();
 });
 $('save').addEventListener('click', save);
+
+initTheme().catch(() => {});
 
 init().catch((err) => notice([document.createTextNode(`Could not load the list: ${err.message}`)]));

@@ -5,13 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Abacus — Extension settings</title>
     <link rel="stylesheet" href="shared.css" />
+    <!-- paints the cached theme before the first frame; theme.js then syncs with the server -->
+    <script src="theme-boot.js"></script>
     <link rel="stylesheet" href="options.css" />
   </head>
   <body>
     <div class="settings-shell">
       <main>
         <header class="page-head">
-          <span class="logo" role="img" aria-label="Abacus">🧮</span>
+          <span class="logo" role="img" aria-label="Abacus"><svg width="32" height="32" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="square"><rect x="8" y="10" width="84" height="80"/><path d="M28 10v80M50 10v80M72 10v80M8 50h84"/><g fill="currentColor" stroke="none"><rect x="20" y="16" width="16" height="12"/><rect x="20" y="58" width="16" height="12"/><rect x="42" y="30" width="16" height="12"/><rect x="42" y="64" width="16" height="12"/><rect x="64" y="16" width="16" height="12"/><rect x="64" y="58" width="16" height="12"/></g></svg></span>
           <div>
             <h1>Extension settings</h1>
             <p>Connect your library and choose where new saves go.</p>

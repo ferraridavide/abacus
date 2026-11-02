@@ -3,6 +3,7 @@ import {
 } from './lib.js';
 import { createImportTracker } from './pending-jobs.js';
 import { EXTENSION, stitchRegion } from './screenshot.js';
+import { getTheme, syncTheme } from './theme.js';
 
 const MENUS = [
   { id: 'abacus-page', title: 'Save to Abacus', contexts: ['page', 'frame'] },
@@ -65,26 +66,28 @@ function syncContentScripts({ refresh = false } = {}) {
     await chrome.scripting.registerContentScripts([{
       id: CONTENT_ID,
       matches: ALL_SITES,
-      js: ['hd.js', 'content.js'],
+      js: ['theme-boot.js', 'hd.js', 'content.js'],
       runAt: 'document_idle',
       allFrames: true,
       persistAcrossSessions: true,
     }]);
     const tabs = await chrome.tabs.query({ url: ALL_SITES });
     await Promise.all(tabs.map((tab) => chrome.scripting
-      .executeScript({ target: { tabId: tab.id, allFrames: true }, files: ['hd.js', 'content.js'] })
+      .executeScript({ target: { tabId: tab.id, allFrames: true }, files: ['theme-boot.js', 'hd.js', 'content.js'] })
       .catch(() => {})));
   });
   return scriptSync;
 }
 
 chrome.runtime.onInstalled.addListener(({ reason }) => {
+  syncTheme().catch(() => {});
   createMenus().catch((err) => fail(err.message));
   syncContentScripts({ refresh: reason === 'update' }).catch(() => {});
   // There is no default server: ask for one right away.
   if (reason === 'install') chrome.runtime.openOptionsPage();
 });
 chrome.runtime.onStartup.addListener(() => {
+  syncTheme().catch(() => {});
   createMenus().catch((err) => fail(err.message));
   syncContentScripts().catch(() => {});
   imports.resume().catch((err) => fail(err.message));
@@ -153,7 +156,8 @@ async function save(payload) {
   try {
     const config = await getConfig();
     const tags = payload.tags ?? parseTagList(config.tags);
-    await flashBadge('…', '#5b8cff', false);
+    const theme = await getTheme().catch(() => null);
+    await flashBadge('…', theme?.accent?.hex || '#e8a33d', false);
     const data = await submitToAbacus({ ...payload, folder: payload.folder ?? config.folder, tags }, config);
     await imports.track(data, config);
     return data;
@@ -272,7 +276,7 @@ async function pageCall(tabId, name, ...args) {
 async function startScreenshot(tab, mode) {
   try {
     if (!isHttp(tab?.url)) return await fail('This page cannot be captured.');
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['capture.js'] });
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['theme-boot.js', 'capture.js'] });
     if (mode === 'area' || mode === 'element') {
       // The result arrives as a 'screenshot-result' message once the user has chosen.
       await pageCall(tab.id, 'pick', mode);
