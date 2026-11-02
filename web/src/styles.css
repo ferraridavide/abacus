@@ -2146,6 +2146,9 @@ picture {
   cursor: grab;
   touch-action: none;
   user-select: none;
+  -webkit-user-select: none;
+  /* a long press shouldn't pop up the image's save/share menu mid-gesture */
+  -webkit-touch-callout: none;
   background-color: #0c0d10;
   background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
   background-size: 22px 22px;
