@@ -54,17 +54,21 @@ function SettingsInner() {
               <span className="nav-label">{s.label}</span>
             </button>
           ))}
+          <Version />
         </nav>
       )}
       <div className="settings-main">
         <DialogHead title={title} onBack={back} onClose={close} />
         <div className="settings-body page-enter" key={`${section}/${provider?.id ?? ''}`}>
           {!section && (
-            <div className="page-links">
-              {SECTIONS.map((s) => (
-                <PageLink key={s.key} icon={s.icon} label={s.label} desc={s.desc} onClick={() => open(s.key)} />
-              ))}
-            </div>
+            <>
+              <div className="page-links">
+                {SECTIONS.map((s) => (
+                  <PageLink key={s.key} icon={s.icon} label={s.label} desc={s.desc} onClick={() => open(s.key)} />
+                ))}
+              </div>
+              <Version />
+            </>
           )}
           {section === 'playback' && <PlaybackSettings />}
           {section === 'search' && <SemanticSearchSettings />}
@@ -78,6 +82,14 @@ function SettingsInner() {
         </div>
       </div>
     </Modal>
+  );
+}
+
+function Version() {
+  return (
+    <div className="settings-version" title="Running commit">
+      {__APP_SHA__}
+    </div>
   );
 }
 

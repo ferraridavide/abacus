@@ -8,13 +8,13 @@ import { cls } from './ui';
 
 const SERVICE: SettingsService = { test: api.testEmbeddings, update: api.updateEmbeddings };
 
-const GROUPS: { key: string; label: string; desc: string; icon: React.ReactNode }[] = [
-  { key: 'connection', label: 'Connection', desc: 'The embeddings service and model', icon: <PlugZap size={14} /> },
-  { key: 'ranking', label: 'Ranking', desc: 'Which results a search keeps', icon: <SlidersHorizontal size={14} /> },
+const GROUPS: { key: string; label: string; icon: React.ReactNode }[] = [
+  { key: 'connection', label: 'Connection', icon: <PlugZap size={14} /> },
+  { key: 'ranking', label: 'Ranking', icon: <SlidersHorizontal size={14} /> },
 ];
 
-/** URLs and choices take a whole row; short fields share one. */
-const isWide = (f: ProviderField) => f.type === 'url' || f.type === 'select';
+/** URLs and choices take a whole row, and so does a field with no neighbour; short fields share one. */
+const isWide = (f: ProviderField, alone: boolean) => alone || f.type === 'url' || f.type === 'select';
 
 /** The embeddings service's settings, and how far it has got through the library. */
 export function SemanticSearchSettings() {
@@ -67,11 +67,10 @@ function SemanticSearchForm({ settings, onSaved }: { settings: ProviderSettings;
             <div className="form-group-head">
               <span className="form-group-icon">{g.icon}</span>
               <span className="form-group-label">{g.label}</span>
-              <span className="form-group-desc">{g.desc}</span>
             </div>
             <div className="form-group-card">
               {fields.map((f) => (
-                <div key={f.key} className={cls('form-cell', isWide(f) && 'wide')}>
+                <div key={f.key} className={cls('form-cell', isWide(f, fields.length === 1) && 'wide')}>
                   <FieldInput
                     field={f}
                     value={values[f.key]}

@@ -1,8 +1,19 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type HtmlTagDescriptor, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+
+// Docker builds have no .git, so the image build passes the sha in as GIT_SHA.
+function gitSha(): string {
+  if (process.env.GIT_SHA) return process.env.GIT_SHA.slice(0, 7);
+  try {
+    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  } catch {
+    return 'dev';
+  }
+}
 
 const backend = process.env.BACKEND_URL || 'http://localhost:8080';
 
@@ -64,6 +75,7 @@ function demoSite(): Plugin {
 export default defineConfig(({ mode }) => ({
   // the demo is a static site that may be served from a subpath, such as GitHub Pages' /<repo>/
   base: mode === 'demo' ? './' : '/',
+  define: { __APP_SHA__: JSON.stringify(gitSha()) },
   plugins: [react(), demoSite()],
   server: {
     // Tailscale serve proxies to 127.0.0.1, which is not the same socket as ::1.

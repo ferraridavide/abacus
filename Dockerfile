@@ -4,6 +4,8 @@ WORKDIR /app/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY web/ ./
+ARG GIT_SHA
+ENV GIT_SHA=$GIT_SHA
 RUN npm run build
 
 # ---- install server production deps ----
