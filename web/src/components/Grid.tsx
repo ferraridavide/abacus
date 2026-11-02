@@ -10,6 +10,8 @@ import { cls, useMediaQuery, XLogo } from './ui';
 const OVERSCAN = 900;
 const STEP = 300;
 const LONG_PRESS = 450;
+const THUMB_MIN = 80; // the narrow-screen slider's range
+const THUMB_MAX = 400;
 
 export function Grid() {
   const items = useStore((s) => s.items);
@@ -44,6 +46,38 @@ export function Grid() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [view]);
+
+  // Pinch with two fingers to change the thumbnail size. Native listeners: React's touch handlers are passive,
+  // and the page must not zoom as well.
+  useEffect(() => {
+    const el = scrollRef.current!;
+    const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    let start: { d: number; size: number } | null = null;
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) start = { d: dist(e.touches), size: useStore.getState().thumbSize };
+      else start = null;
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!start || e.touches.length !== 2) return;
+      e.preventDefault();
+      const size = Math.round((start.size * dist(e.touches)) / start.d / 10) * 10;
+      const next = Math.min(THUMB_MAX, Math.max(THUMB_MIN, size));
+      if (next !== useStore.getState().thumbSize) useStore.getState().setThumbSize(next);
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) start = null;
+    };
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: false });
+    el.addEventListener('touchend', onEnd, { passive: true });
+    el.addEventListener('touchcancel', onEnd, { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+      el.removeEventListener('touchcancel', onEnd);
+    };
+  }, []);
 
   const captionH = showInfo ? 46 : 0;
   const { boxes, height } = useMemo(

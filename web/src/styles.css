@@ -909,6 +909,7 @@ a {
   padding: 20px 22px 60px;
   position: relative;
   user-select: none;
+  touch-action: pan-y; /* the browser keeps scrolling; the grid handles the pinch itself */
 }
 .grid-content {
   position: relative;
