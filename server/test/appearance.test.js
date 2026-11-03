@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { after, before, describe, test } from 'node:test';
 import { startAbacus } from './helpers.js';
 
@@ -15,27 +17,42 @@ const get = () => app.call('GET', '/api/settings/appearance', undefined, { as: '
 const patch = (body) => app.call('PATCH', '/api/settings/appearance', body, { as: 'basic' });
 
 describe('appearance', () => {
-  test('starts dark, graphite, rounded and OLED, with a blue accent', async () => {
+  test('starts as the original look: dark Classic, rounded, no OLED, blue accent', async () => {
     const { status, data, headers } = await get();
     assert.equal(status, 200);
     assert.equal(headers.get('cache-control'), 'no-store');
     assert.equal(data.scheme, 'dark');
-    assert.equal(data.theme, 'graphite');
+    assert.equal(data.theme, 'classic');
     assert.equal(data.corners, 'rounded');
-    assert.equal(data.oled, true);
+    assert.equal(data.oled, false);
     assert.equal(data.accent.id, 'blue');
     assert.equal(data.accent.hex, '#5b8cff');
+    // Classic dark is the original palette, value for value
+    assert.equal(data.palettes.dark.bg, '#121316');
+    assert.equal(data.palettes.dark.text, '#ececef');
     assert.ok(data.presets.length >= 4);
     assert.ok(data.presets.every((p) => p.id && p.label && /^#[0-9a-f]{6}$/i.test(p.hex)));
-    assert.deepEqual(data.themes.map((t) => t.id), ['graphite', 'slate', 'sepia']);
+    assert.deepEqual(data.themes.map((t) => t.id), ['classic', 'graphite', 'slate', 'sepia']);
+  });
+
+  test('stores only the choices made, so the rest keeps following the default', async () => {
+    await patch({ corners: 'squared' });
+    const db = new DatabaseSync(path.join(app.dataDir, 'library.db'), { readOnly: true });
+    try {
+      const row = db.prepare("SELECT value FROM settings WHERE key = 'appearance'").get();
+      assert.deepEqual(JSON.parse(row.value), { corners: 'squared' });
+    } finally {
+      db.close();
+    }
   });
 
   test('resolves ink that stays readable on the accent', async () => {
     const { data } = await patch({ accent: 'blue' });
     assert.equal(data.accent.hex, '#5b8cff');
-    // a mid-tone blue needs the dark ink; paper would be under 4.5:1
-    assert.equal(data.accent.ink, '#14120d');
-    assert.equal(data.accent.soft, 'rgba(91, 140, 255, 0.14)');
+    // white on the blue, as the app always had it, and the violet second stop of its gradients
+    assert.equal(data.accent.ink, '#ffffff');
+    assert.equal(data.accent.soft, 'rgba(91, 140, 255, 0.16)');
+    assert.equal(data.accent.hex2, '#8a5bff');
     // and as ink on light surfaces it darkens, while dark surfaces keep the raw hue
     assert.equal(data.accent.text.dark, '#5b8cff');
     assert.notEqual(data.accent.text.light, '#5b8cff');
@@ -45,7 +62,11 @@ describe('appearance', () => {
     assert.equal(gray.accent.ink, '#14120d');
 
     const { data: night } = await patch({ accent: '#101014' });
-    assert.equal(night.accent.ink, '#f4f1ea');
+    assert.equal(night.accent.ink, '#ffffff');
+
+    // a light accent drops under 3:1 with white, so it takes the dark ink
+    const { data: amber } = await patch({ accent: 'amber' });
+    assert.equal(amber.accent.ink, '#14120d');
   });
 
   test('switches corners and keeps the accent across a reload-sized read', async () => {
@@ -62,16 +83,17 @@ describe('appearance', () => {
       for (const scheme of ['light', 'dark', 'oled']) {
         const palette = data.palettes[scheme];
         assert.match(palette.bg, /^hsl\(/, `${theme}/${scheme}`);
-        assert.ok(palette.text && palette.panel && palette.border && palette.primary, `${theme}/${scheme}`);
+        assert.ok(palette.text && palette.panel && palette.border && palette.overlay && palette.shade, `${theme}/${scheme}`);
       }
     }
     const { data } = await patch({ theme: 'graphite' });
     // OLED is the dark ladder with the surfaces dropped to black, not a filter over the dark palette
     assert.equal(data.palettes.oled.bg, 'hsl(40 6% 0%)');
     assert.notEqual(data.palettes.oled.panel, data.palettes.dark.panel);
-    // light flips the text ramp and the primary plate
-    assert.equal(data.palettes.light.primary, 'hsl(40 6% 14%)');
-    assert.equal(data.palettes.dark.primary, 'hsl(40 6% 91%)');
+    // light flips the text ramp and softens the drop shadows
+    assert.equal(data.palettes.light.text, 'hsl(40 6% 12%)');
+    assert.equal(data.palettes.light.shade, '0.35');
+    assert.equal(data.palettes.dark.shade, '1');
   });
 
   test('stores scheme, theme and OLED', async () => {
@@ -81,7 +103,7 @@ describe('appearance', () => {
     assert.equal(data.oled, true);
     assert.equal((await get()).data.scheme, 'light');
 
-    await patch({ scheme: 'dark', theme: 'graphite', oled: false });
+    await patch({ scheme: 'dark', theme: 'classic', oled: false });
     const { data: reset } = await get();
     assert.equal(reset.scheme, 'dark');
     assert.equal(reset.oled, false);
@@ -93,7 +115,7 @@ describe('appearance', () => {
     assert.equal(data.corners, 'squared');
     assert.equal(data.accent.id, 'amber');
     assert.equal(data.scheme, 'dark');
-    assert.equal(data.theme, 'graphite');
+    assert.equal(data.theme, 'classic');
     // and an invalid hex does not overwrite a good one either
     const { data: after } = await patch({ accent: '#12345' });
     assert.equal(after.accent.hex, '#e8a33d');

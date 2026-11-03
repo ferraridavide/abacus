@@ -54,23 +54,25 @@
   const STYLE = `
     :host { all: initial; }
     * { box-sizing: border-box; }
+    :host([data-corners="squared"]) * { border-radius: 0 !important; }
     .toast { position: fixed; right: 24px; bottom: 24px; transform: translateY(12px); opacity: 0; pointer-events: none;
-      max-width: min(420px, 90vw); padding: 9px 14px; border-radius: var(--r-md); background: var(--panel); color: var(--text);
-      border: 1px solid var(--border-strong); box-shadow: var(--shadow);
+      max-width: min(420px, 90vw); padding: 9px 14px; border-radius: 10px; background: var(--panel); color: var(--text);
+      border: 1px solid var(--border-strong); box-shadow: 0 10px 30px rgba(0,0,0,calc(.45 * var(--shade)));
       font: 500 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; transition: opacity .18s, transform .18s; }
     .toast.show { opacity: 1; transform: none; }
-    .toast.ok { border-color: var(--ok); }
-    .toast.error { border-color: var(--danger); }
+    .toast.ok { border-color: color-mix(in srgb, var(--ok) 50%, transparent); }
+    .toast.error { border-color: color-mix(in srgb, var(--danger) 55%, transparent); }
     .dock { position: fixed; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; gap: 10px; padding: 26px 16px 18px;
       background: linear-gradient(to top, rgba(10,11,14,.82), rgba(10,11,14,0)); opacity: 0; transform: translateY(14px);
       transition: opacity .15s, transform .15s; font: 500 12px/1.3 system-ui, -apple-system, 'Segoe UI', sans-serif; }
     .dock.show { opacity: 1; transform: none; }
-    .tile { pointer-events: auto; min-width: 118px; max-width: 200px; padding: 12px 16px; border-radius: var(--r-md); text-align: center;
-      background: var(--panel-2); color: var(--text); border: 1px dashed var(--border-strong); transition: background .12s, border-color .12s; }
-    .tile small { display: block; margin-bottom: 3px; color: var(--text-faint); font-weight: 400; font-size: 11px; }
+    .tile { pointer-events: auto; min-width: 118px; max-width: 200px; padding: 12px 16px; border-radius: 12px; text-align: center;
+      background: var(--panel-2); color: var(--text); border: 1.5px dashed color-mix(in srgb, var(--text) 28%, transparent);
+      transition: background .12s, border-color .12s, transform .12s; }
+    .tile small { display: block; margin-bottom: 3px; color: var(--text-dim); font-weight: 400; font-size: 10.5px; letter-spacing: .02em; text-transform: uppercase; }
     .tile b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 13px; }
-    .tile.over { background: var(--panel-3); border: 1px solid var(--accent); }
-    .tile.over small { color: var(--accent); }
+    .tile.over { background: color-mix(in srgb, var(--accent) 25%, var(--panel-2)); border: 1.5px solid var(--accent);
+      transform: translateY(-4px) scale(1.04); }
   `;
 
   let ui;

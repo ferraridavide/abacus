@@ -121,9 +121,9 @@ export const schemas = {
   Palette: object({
     bg: string, panel: string, panel2: string, panel3: string, raise: string, hover: string, track: string,
     border: string, borderStrong: string, text: string, textDim: string, textFaint: string,
-    overlay: string, scrim: string, stage: string, stageDot: string, checkerA: string, checkerB: string,
-    shadow: string, primary: string, onPrimary: string, primaryHover: string,
-    danger: string, dangerSoft: string, ok: string, okSoft: string,
+    overlay: string, float: string, scrim: string, stage: string, checkerA: string, checkerB: string,
+    shadow: string, shade: { ...string, description: 'Multiplies the alpha of the other drop shadows.' },
+    danger: string, ok: string,
   }, ['bg', 'panel', 'text']),
   Appearance: object({
     scheme: { type: 'string', enum: ['light', 'dark', 'system'] },
@@ -132,10 +132,11 @@ export const schemas = {
     oled: boolean,
     accent: object({
       id: string, label: string, hex: string,
+      hex2: { ...string, description: 'The second stop of the accent gradients.' },
       ink: { ...string, description: 'Text colour that stays readable on the accent.' },
-      soft: { ...string, description: 'The 14% wash used for selections and focus rings.' },
+      soft: { ...string, description: 'The 16% wash used for selections and focus rings.' },
       text: object({ light: string, dark: string }, ['light', 'dark']),
-    }, ['id', 'label', 'hex', 'ink', 'soft', 'text']),
+    }, ['id', 'label', 'hex', 'hex2', 'ink', 'soft', 'text']),
     palettes: object({ light: ref('Palette'), dark: ref('Palette'), oled: ref('Palette') }, ['light', 'dark', 'oled']),
     themes: array(object({
       id: string, label: string,

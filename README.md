@@ -116,8 +116,8 @@ Set these environment variables in `docker-compose.yml` or in your shell.
 | `MAX_DOWNLOAD_MB`    | `1024`   | Maximum size of a single downloaded or uploaded file.    |
 
 Per-browser preferences, such as layout, thumbnail size, and video autoplay, are set in **Settings**. The theme
-(**Settings → Appearance**) — light, dark or system, a theme (Graphite, Slate, Sepia), OLED mode, the accent
-colour and squared or rounded corners — is stored on the server, so every browser and the Chrome extension wear it
+(**Settings → Appearance**) — light, dark or system, a theme (Classic, the default, or Graphite, Slate, Sepia), OLED
+mode, the accent colour and squared or rounded corners — is stored on the server, so every browser and the Chrome extension wear it
 too. Import providers and API keys (**Settings → Integration**) are also set up there, and apply to every browser,
 and so do progressive JPEG XL thumbnails (**Settings → Thumbnails**). Turning those on converts every thumbnail in
 the background; turning them off deletes the JPEG XL files.

@@ -103,6 +103,8 @@ interface State {
   set: (patch: Partial<State>) => void;
   /** Read the theme from the server (or the demo's storage) and paint it. */
   refreshAppearance: () => Promise<void>;
+  /** Paint a theme change right away without saving it (the custom accent while its colour well is dragged). */
+  previewAppearance: (patch: Partial<AppearanceChoice>) => void;
   /** Change the instance theme: patched on the server, cached here, painted immediately. */
   setAppearance: (patch: Partial<AppearanceChoice>) => Promise<void>;
   refresh: () => Promise<void>;
@@ -134,6 +136,7 @@ interface State {
 }
 
 let itemsRequest = 0;
+let appearanceRequest = 0;
 const PAGE = 200;
 
 /** Query-string for the current view, search, filters and sort. */
@@ -233,23 +236,31 @@ export const useStore = create<State>()(
         }
       },
 
-      setAppearance: async (patch) => {
+      previewAppearance: (patch) => {
         const current = get().appearance;
-        applyAppearance(
-          resolveAppearance({
-            scheme: patch.scheme ?? current.scheme,
-            theme: patch.theme ?? current.theme,
-            corners: patch.corners ?? current.corners,
-            oled: patch.oled ?? current.oled,
-            accent: patch.accent ?? current.accent.hex,
-          })
-        );
+        const local = resolveAppearance({
+          scheme: patch.scheme ?? current.scheme,
+          theme: patch.theme ?? current.theme,
+          corners: patch.corners ?? current.corners,
+          oled: patch.oled ?? current.oled,
+          accent: patch.accent ?? current.accent.hex,
+        });
+        applyAppearance(local);
+        set({ appearance: local });
+      },
+
+      setAppearance: async (patch) => {
+        get().previewAppearance(patch);
+        const req = ++appearanceRequest;
         try {
           const appearance = await api.updateAppearance(patch);
+          // a newer change is already on its way: its answer is the one to paint
+          if (req !== appearanceRequest) return;
           applyAppearance(appearance);
           cacheAppearance(appearance);
           set({ appearance });
         } catch (e) {
+          if (req !== appearanceRequest) return;
           get().toast((e as Error).message, 'error');
           await get().refreshAppearance();
         }

@@ -179,7 +179,7 @@ export function createOpenApi({ authRequired = false } = {}) {
       '/api/settings/appearance': {
         get: operation('appearanceSettings', 'Settings', 'Read the theme the app and the extension share', ref('Appearance'), {
           security: integration,
-          description: 'The corner style and the one accent colour. An extension API key may read this so the extension can match the library.',
+          description: 'Colour scheme, theme, OLED, corners and accent, with the palettes they resolve to. An extension API key may read this so the extension can match the library.',
         }),
         patch: operation('updateAppearance', 'Settings', 'Update the theme', ref('Appearance'), {
           requestBody: body('AppearancePatch'), responses: { 400: error('Invalid or missing settings.') },

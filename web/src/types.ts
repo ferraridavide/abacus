@@ -241,19 +241,16 @@ export interface Palette {
   textDim: string;
   textFaint: string;
   overlay: string;
+  float: string;
   scrim: string;
   stage: string;
-  stageDot: string;
   checkerA: string;
   checkerB: string;
   shadow: string;
-  primary: string;
-  onPrimary: string;
-  primaryHover: string;
+  /** multiplies the alpha of the stylesheet's own drop shadows */
+  shade: string;
   danger: string;
-  dangerSoft: string;
   ok: string;
-  okSoft: string;
 }
 
 export type Scheme = 'light' | 'dark' | 'system';
@@ -279,7 +276,7 @@ export interface ThemeChoice {
 
 /** The instance theme, as returned by the server: the choices plus every palette they resolve to. */
 export interface Appearance extends Omit<AppearanceChoice, 'accent'> {
-  accent: AccentPreset & { ink: string; soft: string; text: { light: string; dark: string } };
+  accent: AccentPreset & { hex2: string; ink: string; soft: string; text: { light: string; dark: string } };
   palettes: { light: Palette; dark: Palette; oled: Palette };
   themes: ThemeChoice[];
   presets: AccentPreset[];

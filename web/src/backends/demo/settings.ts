@@ -1,6 +1,6 @@
 import type { Backend, ServicePatch } from '../../api';
 import type { ApiKey, AppearanceChoice, ProviderField, ProviderSettings, StorageUsage } from '../../types';
-import { DEFAULT_APPEARANCE, resolveAppearance } from '../../lib/theme';
+import { resolveAppearance } from '../../lib/theme';
 import type { DemoDb } from './db';
 
 // Settings for what only the server does — import providers, semantic search, JPEG XL thumbnails, storage, API
@@ -25,7 +25,8 @@ interface Service {
 }
 
 interface State {
-  appearance: AppearanceChoice;
+  /** Settings → Appearance: only the choices made. (Not `appearance`: older demo saves stored every field there.) */
+  look: Partial<AppearanceChoice>;
   cobalt: Service;
   embeddings: Service & { since: number };
   thumbnails: { jxl: boolean; previews: boolean; since: number };
@@ -94,7 +95,7 @@ const JXL_RATIO = 0.8;
 const PREVIEW_RATIO = 0.45;
 
 const initialState = (): State => ({
-  appearance: { ...DEFAULT_APPEARANCE },
+  look: {},
   cobalt: { enabled: true, values: { url: 'http://192.168.1.10:9000', apiKey: '', videoQuality: '1080' } },
   embeddings: {
     enabled: true,
@@ -199,18 +200,13 @@ export async function createDemoSettings(db: DemoDb, library: () => LibraryStats
     | 'thumbnailSettings'
     | 'updateThumbnails'
   > = {
-    // the theme is a server setting, so the demo keeps it like the library: in this browser
-    appearance: async () => resolveAppearance(state.appearance),
+    // the theme is a server setting, so the demo keeps it like the library: in this browser, and only what was chosen
+    appearance: async () => resolveAppearance(state.look),
     async updateAppearance(patch) {
-      state.appearance = {
-        scheme: patch.scheme ?? state.appearance.scheme,
-        theme: patch.theme ?? state.appearance.theme,
-        corners: patch.corners ?? state.appearance.corners,
-        oled: patch.oled ?? state.appearance.oled,
-        accent: patch.accent ?? state.appearance.accent,
-      };
+      const chosen = Object.entries(patch).filter(([, value]) => value !== undefined);
+      state.look = { ...state.look, ...Object.fromEntries(chosen) };
       await save();
-      return resolveAppearance(state.appearance);
+      return resolveAppearance(state.look);
     },
     apiKeys: async () => state.apiKeys.map((k) => ({ ...k })),
     async createApiKey(name) {

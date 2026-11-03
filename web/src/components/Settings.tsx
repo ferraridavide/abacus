@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import {
   CloudDownload, HardDrive, Image as ImageIcon, KeyRound, MousePointer2, Palette, PauseCircle, PlayCircle, Play, Plus, Sparkles,
 } from 'lucide-react';
@@ -154,8 +154,16 @@ function previewScheme(scheme: 'light' | 'dark' | 'system'): 'light' | 'dark' {
 function AppearanceSettings() {
   const appearance = useStore((s) => s.appearance);
   const setAppearance = useStore((s) => s.setAppearance);
+  const previewAppearance = useStore((s) => s.previewAppearance);
   const custom = appearance.accent.id === 'custom';
   const mode = previewScheme(appearance.scheme);
+  // the colour well fires on every pixel of a drag: paint each one, save once it settles
+  const pickTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const pickAccent = (hex: string) => {
+    previewAppearance({ accent: hex });
+    clearTimeout(pickTimer.current);
+    pickTimer.current = setTimeout(() => setAppearance({ accent: hex }), 200);
+  };
 
   return (
     <div className="appearance">
@@ -221,7 +229,7 @@ function AppearanceSettings() {
               type="color"
               className="accent-input"
               value={appearance.accent.hex}
-              onChange={(e) => setAppearance({ accent: e.target.value })}
+              onChange={(e) => pickAccent(e.target.value)}
               aria-label="Custom accent color"
             />
             <Plus size={12} aria-hidden />

@@ -12,32 +12,11 @@ export function XLogo({ size = 14 }: { size?: number }) {
   );
 }
 
-/** The abacus mark: a squared frame, a beam, two rods and four beads. One colour, no gradient. */
 export function Logo({ size = 28 }: { size?: number }) {
   return (
-    <svg
-      className="logo"
-      width={size}
-      height={size}
-      viewBox="0 0 100 100"
-      role="img"
-      aria-label="Abacus"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={6}
-      strokeLinecap="square"
-    >
-      <rect x="8" y="10" width="84" height="80" />
-      <path d="M28 10v80M50 10v80M72 10v80M8 50h84" />
-      <g fill="currentColor" stroke="none">
-        <rect x="20" y="16" width="16" height="12" />
-        <rect x="20" y="58" width="16" height="12" />
-        <rect x="42" y="30" width="16" height="12" />
-        <rect x="42" y="64" width="16" height="12" />
-        <rect x="64" y="16" width="16" height="12" />
-        <rect x="64" y="58" width="16" height="12" />
-      </g>
-    </svg>
+    <span className="logo" role="img" aria-label="Abacus" style={{ fontSize: size * 0.95, width: size, height: size }}>
+      🧮
+    </span>
   );
 }
 

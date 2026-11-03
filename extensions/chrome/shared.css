@@ -1,56 +1,37 @@
-/* Keep extension primitives aligned with web/src/styles.css. */
+/*
+ * Keep extension primitives aligned with web/src/styles.css. These are the Classic dark defaults; theme-boot.js
+ * paints the library's theme (Settings → Appearance) over them before the first frame.
+ */
 :root {
   color-scheme: dark;
-  /* The default palette (theme Graphite, dark, OLED on). theme-boot.js paints the server value before the
-     first frame, so these are only the fallback. */
-  --bg: hsl(40 6% 0%);
-  --panel: hsl(40 6% 3%);
-  --panel-2: hsl(40 6% 5.5%);
-  --panel-3: hsl(40 6% 9%);
-  --raise: hsl(40 6% 12%);
-  --hover: hsl(40 6% 91% / 0.05);
-  --track: hsl(40 6% 91% / 0.08);
-  --border: hsl(40 6% 91% / 0.14);
-  --border-strong: hsl(40 6% 91% / 0.21);
-  --text: hsl(40 6% 91%);
-  --text-dim: hsl(40 6% 64%);
-  --text-faint: hsl(40 6% 50%);
-  --overlay: hsl(40 6% 3% / 0.97);
-  --scrim: hsl(0 0% 0% / 0.72);
-  --primary: hsl(40 6% 91%);
-  --on-primary: #14120d;
-  --primary-hover: hsl(40 6% 97%);
+  --bg: #121316;
+  --panel: #18191d;
+  --panel-2: #1f2025;
+  --panel-3: #26272d;
+  --hover: rgba(255, 255, 255, 0.055);
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --text: #ececef;
+  --text-dim: #a1a3ab;
+  --text-faint: #6c6e77;
+  --checker-a: #1c1d22;
+  --checker-b: #202127;
   --accent: #5b8cff;
-  --accent-soft: rgba(91, 140, 255, 0.14);
-  --accent-ink: #14120d;
+  --accent-soft: rgba(91, 140, 255, 0.16);
+  --accent-ink: #fff;
   --accent-text: #5b8cff;
-  --danger: hsl(6 62% 58%);
-  --danger-soft: hsl(6 62% 58% / 0.14);
-  --ok: hsl(155 42% 56%);
-  --ok-soft: hsl(155 42% 56% / 0.14);
-  /* the same radius scale as the web app; [data-corners="squared"] zeroes it */
-  --r-xs: 4px;
-  --r-sm: 6px;
-  --r-md: 8px;
-  --r-lg: 10px;
-  --r-xl: 12px;
-  --r-2xl: 18px;
-  --r-pill: 999px;
-  --r-circle: 50%;
+  --accent-tint: color-mix(in srgb, var(--accent) 68%, #fff);
+  --danger: #ff5f5f;
+  --ok: #3ddc97;
+  --shade: 1;
+  --radius: 10px;
   --font: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
-
-:root[data-corners='squared'] {
-  --r-xs: 0;
-  --r-sm: 0;
-  --r-md: 0;
-  --r-lg: 0;
-  --r-xl: 0;
-  --r-2xl: 0;
-  --r-pill: 0;
-  --r-circle: 0;
-}
+:root[data-scheme='light'] { --accent-tint: var(--accent-text); }
+/* Corners: squared drops every radius. */
+:root[data-corners='squared'] *,
+:root[data-corners='squared'] *::before,
+:root[data-corners='squared'] *::after { border-radius: 0 !important; }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -71,18 +52,18 @@ svg { flex: none; }
   flex: none;
   width: 32px;
   height: 32px;
-  color: var(--accent-text);
+  font-size: 30px;
   line-height: 1;
 }
 h1, h2, p { margin: 0; }
 h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.02em; }
-h2 { font-size: 13px; font-weight: 600; }
+h2 { font-size: 13.5px; font-weight: 600; }
 label { display: grid; align-content: start; gap: 6px; min-width: 0; font-size: 12px; font-weight: 500; }
 input, textarea {
   width: 100%;
   min-width: 0;
   border: 1px solid var(--border-strong);
-  border-radius: var(--r-md);
+  border-radius: 8px;
   outline: none;
   background: var(--panel-2);
   padding: 8px 10px;
@@ -93,20 +74,20 @@ input { height: 32px; padding: 0 10px; }
 input::placeholder, textarea::placeholder { color: var(--text-faint); opacity: 1; }
 input:focus, textarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 textarea { resize: vertical; min-height: 64px; }
 small, .hint { color: var(--text-dim); font-size: 12px; font-weight: 400; }
-code { border-radius: var(--r-xs); background: var(--panel-3); padding: 1px 4px; font: 11px var(--font-mono); }
+code { border-radius: 4px; background: var(--panel-3); padding: 1px 4px; font-size: 11px; }
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 7px;
   min-height: 32px;
-  padding: 0 12px;
+  padding: 0 13px;
   border: 1px solid var(--border-strong);
-  border-radius: var(--r-md);
+  border-radius: 8px;
   background: var(--panel-3);
   font-weight: 500;
   transition: background 0.15s, box-shadow 0.15s, transform 0.08s;
@@ -114,13 +95,14 @@ code { border-radius: var(--r-xs); background: var(--panel-3); padding: 1px 4px;
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: 0.45; cursor: default; }
 .btn.primary {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: var(--on-primary);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 90%, #fff), color-mix(in srgb, var(--accent) 95%, #000));
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--accent-ink);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 30%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 .btn.primary:hover:not(:disabled) {
-  background: var(--primary-hover);
-  border-color: var(--primary-hover);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 80%, #fff), var(--accent));
+  box-shadow: 0 6px 22px color-mix(in srgb, var(--accent) 42%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 .icon-btn {
   display: inline-grid;
@@ -130,7 +112,7 @@ code { border-radius: var(--r-xs); background: var(--panel-3); padding: 1px 4px;
   height: 32px;
   padding: 0;
   border: 0;
-  border-radius: var(--r-md);
+  border-radius: 8px;
   background: transparent;
   color: var(--text-dim);
 }
@@ -145,8 +127,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outlin
   align-items: center;
   gap: 6px;
   width: fit-content;
-  padding: 4px 8px;
-  border-radius: var(--r-sm);
+  padding: 3px 8px;
+  border-radius: 6px;
   background: var(--hover);
   color: var(--text-dim);
   font-size: 11px;
@@ -158,11 +140,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outlin
   flex: none;
   width: 6px;
   height: 6px;
-  border-radius: var(--r-circle);
+  border-radius: 50%;
   background: currentColor;
 }
-.connection-status.ok { color: var(--ok); background: var(--ok-soft); }
-.connection-status.error { color: var(--danger); background: var(--danger-soft); }
+.connection-status.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 9%, transparent); }
+.connection-status.error { color: var(--danger); background: color-mix(in srgb, var(--danger) 9%, transparent); }
 .connection-status.pending::before {
   width: 9px;
   height: 9px;
@@ -189,14 +171,14 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outlin
   padding: 4px;
   list-style: none;
   border: 1px solid var(--border-strong);
-  border-radius: var(--r-md);
+  border-radius: 8px;
   background: var(--panel-2);
-  box-shadow: var(--shadow);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, calc(0.35 * var(--shade)));
   color: var(--text);
   font-size: 12px;
   font-weight: 400;
 }
-.autocomplete-list [role="option"] { padding: 6px 8px; border-radius: var(--r-xs); cursor: pointer; overflow-wrap: anywhere; }
+.autocomplete-list [role="option"] { padding: 6px 8px; border-radius: 4px; cursor: pointer; overflow-wrap: anywhere; }
 .autocomplete-list [role="option"]:hover { background: var(--hover); }
 .autocomplete-list [aria-selected="true"] { background: var(--accent-soft); color: var(--text); }
 .autocomplete-message { padding: 6px 8px; color: var(--text-dim); font-size: 11px; }

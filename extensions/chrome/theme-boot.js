@@ -2,8 +2,8 @@
  * The extension mirrors the theme of the Abacus server it saves to: base colour scheme, theme, corners, OLED and the
  * one accent colour come from GET /api/settings/appearance, are cached here, and are painted as custom properties.
  *
- * This is a classic script on purpose: it must run in <head>, before the first paint, so a light or rounded popup
- * does not flash the default dark graphite for a frame. It publishes the primitives on globalThis.AbacusTheme,
+ * This is a classic script on purpose: it must run in <head>, before the first paint, so a light or squared popup
+ * does not flash the default Classic dark for a frame. It publishes the primitives on globalThis.AbacusTheme,
  * which theme.js (a module) and content.js (an isolated-world content script) both use.
  */
 (() => {
@@ -11,15 +11,32 @@
 
   const DEFAULT_ACCENT = {
     hex: '#5b8cff',
-    ink: '#14120d',
-    soft: 'rgba(91, 140, 255, 0.14)',
+    hex2: '#8b5cff',
+    ink: '#ffffff',
+    soft: 'rgba(91, 140, 255, 0.16)',
     text: { light: '#38579e', dark: '#5b8cff' },
   };
 
-  /** The corner scale, mirrored from web/src/styles.css. Squared is all zeros. */
-  const RADII = {
-    squared: { xs: '0px', sm: '0px', md: '0px', lg: '0px', xl: '0px', '2xl': '0px', pill: '0px', circle: '0px' },
-    rounded: { xs: '4px', sm: '6px', md: '8px', lg: '10px', xl: '12px', '2xl': '18px', pill: '999px', circle: '50%' },
+  /**
+   * Classic dark, the server's default palette. Painted when no theme has been fetched yet, so the in-page UI never
+   * inherits a page's own --panel or --text through its shadow host.
+   */
+  const DEFAULT_PALETTE = {
+    bg: '#121316',
+    panel: '#18191d',
+    panel2: '#1f2025',
+    panel3: '#26272d',
+    hover: 'rgba(255, 255, 255, 0.055)',
+    border: 'rgba(255, 255, 255, 0.07)',
+    borderStrong: 'rgba(255, 255, 255, 0.12)',
+    text: '#ececef',
+    textDim: '#a1a3ab',
+    textFaint: '#6c6e77',
+    checkerA: '#1c1d22',
+    checkerB: '#202127',
+    shade: '1',
+    danger: '#ff5f5f',
+    ok: '#3ddc97',
   };
 
   const HEX = /^#[0-9a-f]{6}$/i;
@@ -40,11 +57,12 @@
     const hex = HEX.test(accent.hex || '') ? String(accent.hex).toLowerCase() : DEFAULT_ACCENT.hex;
     return {
       scheme: SCHEMES.includes(stored.scheme) ? stored.scheme : 'dark',
-      theme: typeof stored.theme === 'string' ? stored.theme : 'graphite',
+      theme: typeof stored.theme === 'string' ? stored.theme : 'classic',
       corners: stored.corners === 'squared' ? 'squared' : 'rounded',
-      oled: typeof stored.oled === 'boolean' ? stored.oled : true,
+      oled: typeof stored.oled === 'boolean' ? stored.oled : false,
       accent: {
         hex,
+        hex2: HEX.test(accent.hex2 || '') ? accent.hex2 : DEFAULT_ACCENT.hex2,
         ink: HEX.test(accent.ink || '') ? accent.ink : DEFAULT_ACCENT.ink,
         soft: typeof accent.soft === 'string' && accent.soft ? accent.soft : DEFAULT_ACCENT.soft,
         text: {
@@ -52,7 +70,7 @@
           dark: HEX.test(accent.text?.dark || '') ? accent.text.dark : hex,
         },
       },
-      // the server resolves the palettes; without them the stylesheet's dark graphite default stands
+      // the server resolves the palettes; without them the Classic dark default stands
       palettes:
         stored.palettes && stored.palettes.dark && stored.palettes.light && stored.palettes.oled ? stored.palettes : null,
     };
@@ -70,7 +88,8 @@
 
   /**
    * Writes the theme onto an element as inline custom properties. The document root for a page, the shadow host for
-   * the in-page UI: everything inside inherits, so the stylesheets only ever read var(--panel) and var(--r-*).
+   * the in-page UI: everything inside inherits, so the stylesheets only ever read var(--panel) and friends.
+   * `data-corners` is an attribute selectors key off: squared drops every radius.
    */
   function apply(theme, root = document.documentElement) {
     if (!root) return;
@@ -80,16 +99,14 @@
     root.dataset.scheme = scheme;
     root.style.colorScheme = scheme;
 
-    const palette = theme.palettes ? theme.palettes[scheme === 'dark' && theme.oled ? 'oled' : scheme] : null;
-    if (palette) {
-      for (const [name, value] of Object.entries(palette)) root.style.setProperty(`--${kebab(name)}`, value);
-    }
+    const palette = (theme.palettes && theme.palettes[scheme === 'dark' && theme.oled ? 'oled' : scheme]) || DEFAULT_PALETTE;
+    for (const [name, value] of Object.entries(palette)) root.style.setProperty(`--${kebab(name)}`, value);
 
     root.style.setProperty('--accent', theme.accent.hex);
+    root.style.setProperty('--accent-2', theme.accent.hex2);
     root.style.setProperty('--accent-soft', theme.accent.soft);
     root.style.setProperty('--accent-ink', theme.accent.ink);
     root.style.setProperty('--accent-text', scheme === 'light' ? theme.accent.text.light : theme.accent.text.dark);
-    for (const [name, value] of Object.entries(RADII[theme.corners])) root.style.setProperty(`--r-${name}`, value);
   }
 
   function cached() {
@@ -109,7 +126,7 @@
     }
   }
 
-  globalThis.AbacusTheme = { STORAGE_KEY, DEFAULT_ACCENT, RADII, normalize, apply, effective, cached, cache };
+  globalThis.AbacusTheme = { STORAGE_KEY, DEFAULT_ACCENT, normalize, apply, effective, cached, cache };
 
   // Extension pages paint immediately from the mirror; content scripts (and Node, in the tests) leave the page alone.
   if (typeof location !== 'undefined' && location.protocol === 'chrome-extension:') {
