@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Columns3, Grid2x2, Hand, Images, Loader2, Maximize2, Minus, MousePointer2, Plus, Scan, Scaling, Sparkles, SquareDashedMousePointer, X } from 'lucide-react';
+import { Columns3, Grid2x2, Hand, Images, Loader2, Minus, MousePointer2, Plus, Scan, Sparkles, SquareDashedMousePointer, X } from 'lucide-react';
 import { api } from '../api';
 import { useStore } from '../store';
 import type { BoardSpot, FolderBoard, Item } from '../types';
@@ -10,7 +10,7 @@ import { cls, useCompact } from './ui';
 import { originalSharper, Thumb, useSettled } from './Thumb';
 
 type Mode = 'masonry' | 'grid' | 'free';
-type Tool = 'select' | 'hand' | 'resize';
+type Tool = 'select' | 'hand';
 type Point = { x: number; y: number };
 type View = { x: number; y: number; s: number };
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -24,7 +24,6 @@ type Gesture =
 const TOOLS: { key: Tool; icon: ReactNode; label: string; hint: string }[] = [
   { key: 'select', icon: <SquareDashedMousePointer size={15} />, label: 'Select', hint: 'V' },
   { key: 'hand', icon: <Hand size={15} />, label: 'Pan', hint: 'H' },
-  { key: 'resize', icon: <Scaling size={15} />, label: 'Resize', hint: 'R' },
 ];
 
 const MODES: { key: Mode; icon: ReactNode; label: string }[] = [
@@ -137,7 +136,7 @@ export function Board() {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [resizingId, setResizingId] = useState<string | null>(null);
   const [panning, setPanning] = useState(false);
-  /** free-mode tool: select images, pan the canvas, or resize an image */
+  /** free-mode tool: select images, or pan the canvas. Resize stays on the select tool. */
   const [tool, setTool] = useState<Tool>('select');
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [marquee, setMarquee] = useState<Placed | null>(null);
@@ -451,8 +450,6 @@ export function Board() {
         setTool('select');
       } else if (e.key === 'h') {
         setTool('hand');
-      } else if (e.key === 'r') {
-        setTool('resize');
       } else if (e.key === '+' || e.key === '=') {
         e.preventDefault();
         zoomAt(1.25);
@@ -574,10 +571,6 @@ export function Board() {
     const box = index >= 0 ? boxes[index] : undefined;
     const additive = e.shiftKey || e.metaKey || e.ctrlKey;
     const wantPan = mode !== 'free' || toolRef.current === 'hand' || spaceHeld || e.button === 1 || e.altKey;
-    if (mode === 'free' && toolRef.current === 'resize' && id && box && e.button === 0 && !wantPan) {
-      beginResize(id, box, e.clientX, e.clientY);
-      return;
-    }
     if (mode === 'free' && toolRef.current === 'select' && e.button === 0 && !wantPan && id && box) {
       seedPlaces();
       const selection = pickedRef.current;
@@ -901,8 +894,7 @@ export function Board() {
         className={cls(
           'board-stage',
           (panning || spaceHeld || (mode === 'free' && tool === 'hand')) && 'panning',
-          mode === 'free' && tool === 'select' && !spaceHeld && 'selecting',
-          mode === 'free' && tool === 'resize' && 'resizing-tool'
+          mode === 'free' && tool === 'select' && !spaceHeld && 'selecting'
         )}
         style={{ backgroundPosition: `${view.x}px ${view.y}px` }}
         onPointerDown={onStagePointerDown}
@@ -933,8 +925,7 @@ export function Board() {
                   mode === 'free' && 'free',
                   draggingId === item.id && 'dragging',
                   resizingId === item.id && 'resizing',
-                  picked.has(item.id) && 'picked',
-                  mode === 'free' && tool === 'resize' && 'show-resize'
+                  picked.has(item.id) && 'picked'
                 )}
                 style={{
                   transform: `translate3d(${box.x}px, ${box.y}px, 0)`,
@@ -963,8 +954,8 @@ export function Board() {
                   <div className="bi-meta">{itemMeta(item)}</div>
                 </div>
                 <div className="board-item-actions" onPointerDown={(e) => e.stopPropagation()}>
-                  <button title="Open preview (double-click)" onClick={() => openViewer(item)}>
-                    <Maximize2 size={14} />
+                  <button title="Full screen (double-click)" onClick={() => openViewer(item)}>
+                    <Scan size={14} />
                   </button>
                   {!folderId && (
                     <button className="danger" title="Remove from board" onClick={() => remove(item.id)}>
@@ -972,7 +963,7 @@ export function Board() {
                     </button>
                   )}
                 </div>
-                {mode === 'free' && (tool === 'resize' || picked.has(item.id)) && (
+                {mode === 'free' && tool === 'select' && (
                   <button
                     className="board-item-resize"
                     title="Drag to resize"
@@ -1010,9 +1001,7 @@ export function Board() {
             {mode === 'free'
               ? tool === 'select'
                 ? 'Click or drag to select · Shift adds · Drag a corner to resize · Tidy keeps sizes'
-                : tool === 'resize'
-                  ? 'Drag an image or its corner to resize · V to select'
-                  : 'Drag to pan · V to select · Scroll to zoom'
+                : 'Drag to pan · V to select · Scroll to zoom'
               : 'Drag to pan · Scroll to zoom'}
           </div>
         )}

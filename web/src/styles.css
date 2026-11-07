@@ -2231,10 +2231,6 @@ picture {
 .board-stage.selecting .board-item.free {
   cursor: default;
 }
-.board-stage.resizing-tool,
-.board-stage.resizing-tool .board-item.free {
-  cursor: nwse-resize;
-}
 .board-item.picked {
   box-shadow: 0 0 0 2px var(--accent), 0 14px 40px rgba(0, 0, 0, calc(0.48 * var(--shade)));
 }
@@ -2344,8 +2340,7 @@ picture {
 }
 .board-item:hover .board-item-resize,
 .board-item.resizing .board-item-resize,
-.board-item.picked .board-item-resize,
-.board-item.show-resize .board-item-resize {
+.board-item.picked .board-item-resize {
   opacity: 1;
 }
 .board-item.resizing {
