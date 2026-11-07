@@ -188,6 +188,12 @@ if (!db.prepare("SELECT 1 FROM pragma_table_info('items') WHERE name = 'preview_
   db.exec('ALTER TABLE items ADD COLUMN preview_jxl TEXT');
 }
 
+// A folder's board: where every image sits on its canvas, how it was last arranged, and the camera it was
+// looking through. JSON, normalized on the way in and out by board.js; NULL until someone arranges the folder.
+if (!db.prepare("SELECT 1 FROM pragma_table_info('folders') WHERE name = 'board'").get()) {
+  db.exec('ALTER TABLE folders ADD COLUMN board TEXT');
+}
+
 export function tx(fn) {
   db.exec('BEGIN');
   try {

@@ -91,6 +91,19 @@ export async function routes(app) {
   app.patch('/api/folders/:id', async (req) => lib.updateFolder(req.params.id, req.body || {}));
   app.delete('/api/folders/:id', async (req) => lib.deleteFolder(req.params.id));
 
+  // A folder's board, kept with the folder so it comes back exactly as it was left.
+  app.get('/api/folders/:id/board', async (req, reply) => {
+    const board = lib.getFolderBoard(req.params.id);
+    if (!board) return notFound(reply);
+    reply.header('cache-control', 'no-store');
+    return board;
+  });
+  app.put('/api/folders/:id/board', async (req, reply) => {
+    const board = lib.saveFolderBoard(req.params.id, req.body || {});
+    if (!board) return notFound(reply);
+    return board;
+  });
+
   // ---------- add: the one content-ingestion API ----------
   // JSON: links, several URLs, or a note. Multipart: one file plus fields (Are.na exports become folders).
   // The web app, the bookmarklet, and the Chrome extension all add content through it.

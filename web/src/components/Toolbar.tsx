@@ -9,6 +9,7 @@ import {
   Folder as FolderIcon,
   Grid2x2,
   Hash,
+  Images,
   Inbox,
   LayoutGrid,
   ListFilter,
@@ -433,7 +434,7 @@ export function Toolbar() {
   const inspectorOpen = useStore((s) => s.inspectorOpen);
   const sidebarHidden = useStore((s) => s.sidebarHidden);
   const trashCount = useStore((s) => s.stats.trash);
-  const { setQuery, setFilters, setLayout, setThumbSize, set, ask, refresh } = useStore.getState();
+  const { setQuery, setFilters, setLayout, setThumbSize, set, ask, refresh, openFolderBoard } = useStore.getState();
   const searchRef = useRef<HTMLInputElement>(null);
   const toolbarRef = useRef<HTMLElement>(null);
   const compact = useCompact();
@@ -693,6 +694,16 @@ export function Toolbar() {
               onChange={(e) => setThumbSize(Number(e.target.value))}
             />
           </>
+        )}
+
+        {view.kind === 'folder' && (
+          <button
+            className="tool-btn"
+            title="Board — this folder's images, arranged the way you left them"
+            onClick={() => openFolderBoard(view.id)}
+          >
+            <Images size={15} /> <span>Board</span>
+          </button>
         )}
 
         {view.kind === 'trash' && trashCount > 0 && (

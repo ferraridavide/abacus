@@ -16,6 +16,7 @@ import {
 } from './color.js';
 import { kickEmbeddings, similarityTo, textChanged } from './embeddings.js';
 import { bumpRevision } from './revision.js';
+import { emptyBoard, normalizeBoard } from './board.js';
 import { storageTotal } from './storage.js';
 import { jxlPreviewsEnabled, jxlThumbsEnabled, kickJxlThumbs } from './thumbnails.js';
 
@@ -706,6 +707,28 @@ export function deleteFolder(id) {
   db.prepare('DELETE FROM folders WHERE id = ?').run(id);
   bumpRevision();
   return { ok: true };
+}
+
+/** A folder's board, or an empty one. Null when there is no such folder. */
+export function getFolderBoard(id) {
+  const row = db.prepare('SELECT board FROM folders WHERE id = ?').get(id);
+  if (!row) return null;
+  if (!row.board) return emptyBoard();
+  try {
+    return normalizeBoard(JSON.parse(row.board));
+  } catch {
+    // a hand-edited or half-written value: an empty board is better than a folder that won't open
+    return emptyBoard();
+  }
+}
+
+export function saveFolderBoard(id, input) {
+  if (!db.prepare('SELECT 1 FROM folders WHERE id = ?').get(id)) return null;
+  const board = normalizeBoard(input);
+  db.prepare('UPDATE folders SET board = ? WHERE id = ?').run(JSON.stringify(board), id);
+  // deliberately not bumpRevision(): the library did not change, and the web app would refetch its grid
+  // underneath the very canvas it is arranging
+  return board;
 }
 
 /**

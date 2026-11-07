@@ -6,6 +6,7 @@ import type {
   CreatedApiKey,
   EmbeddingStatus,
   Folder,
+  FolderBoard,
   Item,
   ItemEmbedding,
   Job,
@@ -51,6 +52,8 @@ export const httpBackend: Backend = {
   updateFolder: (id: string, patch: Partial<Pick<Folder, 'name' | 'color' | 'parentId' | 'sort'>>) =>
     request<Folder>('PATCH', `/api/folders/${id}`, patch),
   deleteFolder: (id: string) => request<{ ok: boolean }>('DELETE', `/api/folders/${id}`),
+  folderBoard: (id: string) => request<FolderBoard>('GET', `/api/folders/${id}/board`),
+  saveFolderBoard: (id: string, board: FolderBoard) => request<FolderBoard>('PUT', `/api/folders/${id}/board`, board),
   startImport: async (body: { text: string; folderId?: string; tags?: string[] }) => {
     // linksOnly: pasted or dropped text without http(s) links is refused rather than saved as a note.
     const data = await request<{ job: Job | null }>('POST', '/api/add', { ...body, async: true, linksOnly: true });

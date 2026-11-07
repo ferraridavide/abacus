@@ -58,7 +58,7 @@ app.addHook('onRequest', async (req, reply) => {
     reply.header('access-control-allow-origin', origin || '*');
     reply.header('vary', 'origin');
     reply.header('access-control-allow-headers', 'authorization, content-type, x-api-key');
-    reply.header('access-control-allow-methods', 'GET, POST, PATCH, DELETE, OPTIONS');
+    reply.header('access-control-allow-methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     reply.header('access-control-max-age', '86400');
   }
   if (req.method === 'OPTIONS') return reply.code(204).send();

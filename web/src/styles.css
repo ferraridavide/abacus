@@ -20,7 +20,7 @@
   --overlay: rgba(32, 33, 39, 0.97);
   --float: rgba(36, 37, 43, 0.97);
   --scrim: rgba(6, 7, 9, 0.6);
-  /* behind the viewer and the moodboard */
+  /* behind the viewer and the board */
   --stage: #0b0c0f;
   --checker-a: #1c1d22;
   --checker-b: #202127;
@@ -2056,7 +2056,7 @@ picture {
   gap: 8px;
 }
 
-/* ---------------- moodboard ---------------- */
+/* ---------------- board ---------------- */
 .board {
   position: fixed;
   inset: 0;
@@ -2095,6 +2095,24 @@ picture {
   font-size: 11.5px;
   color: var(--text-faint);
   white-space: nowrap;
+}
+.board-title h2 {
+  max-width: 40vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* a folder board is saved as it is arranged; this says whether the last change made it */
+.board-save {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+.board-save:empty {
+  display: none;
+}
+.board-save.error {
+  color: var(--danger);
 }
 .board-tools {
   display: flex;
@@ -2207,6 +2225,28 @@ picture {
 .board-item.free {
   cursor: grab;
 }
+.board-stage.selecting {
+  cursor: default;
+}
+.board-stage.selecting .board-item.free {
+  cursor: default;
+}
+.board-stage.resizing-tool,
+.board-stage.resizing-tool .board-item.free {
+  cursor: nwse-resize;
+}
+.board-item.picked {
+  box-shadow: 0 0 0 2px var(--accent), 0 14px 40px rgba(0, 0, 0, calc(0.48 * var(--shade)));
+}
+.board-marquee {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  pointer-events: none;
+  z-index: 10000;
+}
 .board-item.free.dragging {
   cursor: grabbing;
   transition: none;
@@ -2284,6 +2324,40 @@ picture {
 }
 .board-item-actions button.danger:hover {
   background: var(--danger);
+}
+/* the corner that gives an image its own size, for a board arranged by hand */
+.board-item-resize {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 5px;
+  background: rgba(12, 13, 16, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  cursor: nwse-resize;
+  touch-action: none;
+  transition: opacity 0.15s, background 0.15s;
+}
+.board-item:hover .board-item-resize,
+.board-item.resizing .board-item-resize,
+.board-item.picked .board-item-resize,
+.board-item.show-resize .board-item-resize {
+  opacity: 1;
+}
+.board-item.resizing {
+  transition: none;
+}
+.board-item-resize:hover {
+  background: rgba(48, 50, 60, 0.95);
+}
+@media (hover: none) {
+  .board-item-resize {
+    opacity: 0.8;
+  }
 }
 .board-empty {
   position: absolute;
