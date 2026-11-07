@@ -145,6 +145,9 @@ export function Board() {
   pickedRef.current = picked;
   const toolRef = useRef(tool);
   toolRef.current = tool;
+  /** the tool to restore when a right-button pan ends; null while the right button is up */
+  const toolBeforeRight = useRef<Tool | null>(null);
+  const rightPointer = useRef<number | null>(null);
   // promoted to its own layer only while the view moves: a layer keeps the bitmap it was drawn at, so leaving it on
   // would show a zoomed-in board as an enlarged low-resolution picture of itself
   const [moving, setMoving] = useState(false);
@@ -549,9 +552,10 @@ export function Board() {
   };
 
   const onStagePointerDown = (e: React.PointerEvent) => {
-    if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1) return;
+    if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1 && e.button !== 2) return;
     const target = e.target as HTMLElement;
-    if (target.closest('button') || pointers.current.size >= 2) return;
+    // the right button is a temporary hand: it pans even when it lands on a control
+    if (e.button !== 2 && (target.closest('button') || pointers.current.size >= 2)) return;
     stopFling();
     if (e.pointerType === 'touch') lastTouch.current = Date.now();
     const point = localPoint(e);
@@ -560,7 +564,8 @@ export function Board() {
     const itemEl = target.closest<HTMLElement>('.board-item');
     (itemEl ?? e.currentTarget).setPointerCapture(e.pointerId);
 
-    if (pointers.current.size === 2) {
+    // a held right button is a pan, not the second finger of a pinch
+    if (pointers.current.size === 2 && e.button !== 2) {
       gesture.current = startPinch();
       setDraggingId(null);
       setPanning(true);
@@ -570,7 +575,14 @@ export function Board() {
     const index = id ? items.findIndex((i) => i.id === id) : -1;
     const box = index >= 0 ? boxes[index] : undefined;
     const additive = e.shiftKey || e.metaKey || e.ctrlKey;
-    const wantPan = mode !== 'free' || toolRef.current === 'hand' || spaceHeld || e.button === 1 || e.altKey;
+    if (e.button === 2) {
+      e.preventDefault();
+      rightPointer.current = e.pointerId;
+      if (toolBeforeRight.current === null) toolBeforeRight.current = toolRef.current;
+      toolRef.current = 'hand';
+      setTool('hand');
+    }
+    const wantPan = mode !== 'free' || toolRef.current === 'hand' || spaceHeld || e.button === 1 || e.button === 2 || e.altKey;
     if (mode === 'free' && toolRef.current === 'select' && e.button === 0 && !wantPan && id && box) {
       seedPlaces();
       const selection = pickedRef.current;
@@ -654,6 +666,15 @@ export function Board() {
   };
 
   const onStagePointerUp = (e: React.PointerEvent) => {
+    if (e.pointerId === rightPointer.current) {
+      rightPointer.current = null;
+      const back = toolBeforeRight.current;
+      toolBeforeRight.current = null;
+      if (back !== null) {
+        toolRef.current = back;
+        setTool(back);
+      }
+    }
     if (!pointers.current.has(e.pointerId)) return;
     const point = localPoint(e);
     pointers.current.delete(e.pointerId);
@@ -1000,7 +1021,7 @@ export function Board() {
           <div className="board-hint">
             {mode === 'free'
               ? tool === 'select'
-                ? 'Click or drag to select · Shift adds · Drag a corner to resize · Tidy keeps sizes'
+                ? 'Click or drag to select · Shift adds · Right-click pans · Drag a corner to resize'
                 : 'Drag to pan · V to select · Scroll to zoom'
               : 'Drag to pan · Scroll to zoom'}
           </div>
