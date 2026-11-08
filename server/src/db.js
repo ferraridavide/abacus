@@ -177,6 +177,11 @@ if (db.prepare('PRAGMA user_version').get().user_version < 5) {
   db.exec('COMMIT');
 }
 
+// A browser-safe full-screen copy of an original browsers can't show (HEIC), made at import. NULL means not made
+// yet, '' means it couldn't be decoded. See library.js.
+if (!db.prepare("SELECT 1 FROM pragma_table_info('items') WHERE name = 'preview'").get()) {
+  db.exec('ALTER TABLE items ADD COLUMN preview TEXT');
+}
 // Optional progressive JPEG XL thumbnail, next to the webp one (which stays: embeddings and colours read it, and
 // browsers without JPEG XL show it). NULL means not made yet, '' means it couldn't be made. See thumbnails.js.
 if (!db.prepare("SELECT 1 FROM pragma_table_info('items') WHERE name = 'thumb_jxl'").get()) {

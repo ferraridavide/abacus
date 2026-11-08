@@ -18,6 +18,8 @@ export interface Item {
   thumbJxlUrl?: string | null;
   /** Screen-sized progressive JPEG XL preview of an image bigger than its thumbnail, under the same setting. */
   previewJxlUrl?: string | null;
+  /** Browser-safe full-screen image, made when the original is a format browsers can't show (HEIC). */
+  previewUrl?: string | null;
   width: number | null;
   height: number | null;
   duration: number | null;
@@ -154,7 +156,7 @@ export interface StorageUsage {
   files: { bytes: number; count: number };
   webp: { bytes: number; count: number };
   jxl: { bytes: number; count: number };
-  /** screen-sized JPEG XL previews */
+  /** screen-sized previews: JPEG XL ones, and JPEG ones for HEIC originals */
   preview: { bytes: number; count: number };
   /** the disk holding the library */
   disk: { size: number; free: number } | null;

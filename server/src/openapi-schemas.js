@@ -31,6 +31,10 @@ export const schemas = {
   Item: object({
     id: string, name: string, type: itemType, ext: nullableString, mime: nullableString,
     fileUrl: nullableString, thumbUrl: nullableString,
+    previewUrl: {
+      ...nullableString,
+      description: "Browser-safe full-screen image, made when the original is a format browsers can't show (HEIC).",
+    },
     thumbJxlUrl: { ...nullableString, description: 'Progressive JPEG XL thumbnail, while that setting is on and it has been made.' },
     previewJxlUrl: { ...nullableString, description: 'Screen-sized progressive JPEG XL preview of an image bigger than its thumbnail, while that setting is on.' },
     width: nullableNumber, height: nullableNumber, duration: nullableNumber, size: number,

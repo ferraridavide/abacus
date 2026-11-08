@@ -30,6 +30,7 @@ export const EMPTY_BOARD: FolderBoard = { mode: 'free', view: null, spots: {}, z
 /** The picture a board shows for an item, if it has one. */
 export function boardVisual(item: Item): string | null {
   if (item.thumbUrl) return item.thumbUrl;
+  if (item.previewUrl) return item.previewUrl;
   if (item.type === 'image' || item.type === 'gif') return item.fileUrl;
   return null;
 }
