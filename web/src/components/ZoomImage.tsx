@@ -297,7 +297,7 @@ export function ZoomImage({ item }: { item: Item }) {
       )}
       <img
         className="zoom-img"
-        src={holdOriginal ? undefined : item.fileUrl!}
+        src={holdOriginal ? undefined : item.previewUrl || item.fileUrl!}
         alt={item.name}
         draggable={false}
         onLoad={onLoad}

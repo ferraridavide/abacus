@@ -9,7 +9,7 @@ import { config, paths } from './config.js';
 import { routes } from './routes.js';
 import { apiDocs } from './api-docs.js';
 import { kickEmbeddings } from './embeddings.js';
-import { backfillColorHistograms } from './library.js';
+import { backfillColorHistograms, backfillHeicPreviews } from './library.js';
 import { kickJxlThumbs } from './thumbnails.js';
 import { kickStorageWalk } from './storage.js';
 import { findApiKey, migrateEnvironmentApiToken, recordApiKeyUse } from './api-keys.js';
@@ -141,6 +141,9 @@ kickEmbeddings();
 
 // index real pixel colours for items imported before colour search existed
 backfillColorHistograms();
+
+// give HEIC images imported before the server could read their pixels a thumbnail and a browser-safe preview
+backfillHeicPreviews();
 
 // finish a JPEG XL thumbnail conversion the last run didn't get through
 kickJxlThumbs();

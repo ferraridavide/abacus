@@ -34,6 +34,7 @@ async function measure(dir, kind = () => 'all') {
 
 function thumbKind(name) {
   if (name.endsWith('.webp')) return 'webp';
+  if (name.endsWith('.jpg')) return name.includes('.preview.') ? 'preview' : null;
   if (name.endsWith('.jxl')) return name.includes('.preview.') ? 'preview' : 'jxl';
   return null;
 }

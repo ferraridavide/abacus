@@ -3,7 +3,7 @@ import path from 'node:path';
 import { db, tx } from './db.js';
 import { paths } from './config.js';
 import { newId, safeName, VIDEO_EXTS } from './util.js';
-import { probeImage, makeThumb, extractPalette, extractHistogram } from './media.js';
+import { probeImage, makeThumb, makeHeicPreview, isHeic, extractPalette, extractHistogram } from './media.js';
 import {
   decodeHistogram,
   packHistogram,
@@ -35,6 +35,8 @@ export function serializeItem(row) {
     mime: row.mime,
     fileUrl: row.file ? '/files/' + row.file.split('/').map(encodeURIComponent).join('/') : null,
     thumbUrl: row.thumb ? '/thumbs/' + row.thumb + '?v=' + row.updated_at : null,
+    // a browser-safe copy of an original browsers can't show (HEIC)
+    previewUrl: row.preview ? '/thumbs/' + row.preview + '?v=' + row.updated_at : null,
     // only while the setting is on, so turning it off takes effect before the files are gone
     thumbJxlUrl: row.thumb_jxl && jxlThumbsEnabled() ? '/thumbs/' + row.thumb_jxl : null,
     previewJxlUrl: row.preview_jxl && jxlPreviewsEnabled() ? '/thumbs/' + row.preview_jxl : null,
@@ -120,9 +122,20 @@ export async function addItem(input) {
   }
 
   let thumb = null;
+  let preview = null;
   let palette = [];
   let colorHist = null;
-  const thumbSrc = input.thumbBuffer || (probe ? input.buffer : null);
+  let thumbSrc = input.thumbBuffer || (probe ? input.buffer : null);
+  let previewBuffer = null;
+  if (thumbSrc && !input.thumbBuffer && isHeic(thumbSrc)) {
+    try {
+      previewBuffer = await makeHeicPreview(thumbSrc);
+      thumbSrc = previewBuffer;
+    } catch {
+      // nothing can read it: it stays a file with no thumbnail
+      thumbSrc = null;
+    }
+  }
   if (thumbSrc) {
     try {
       const t = await makeThumb(thumbSrc);
@@ -131,6 +144,10 @@ export async function addItem(input) {
       palette = await extractPalette(thumbSrc);
       // index the actual pixel codes, not the dominant-colour tags
       colorHist = await extractHistogram(thumbSrc);
+      if (previewBuffer) {
+        preview = `${id}.preview.jpg`;
+        fs.writeFileSync(path.join(paths.thumbs, preview), previewBuffer);
+      }
       if (!width || !height) {
         const p = await probeImage(thumbSrc);
         if (p) {
@@ -140,15 +157,16 @@ export async function addItem(input) {
       }
     } catch {
       thumb = null;
+      preview = null;
     }
   }
 
   tx(() => {
     db.prepare(
-      `INSERT INTO items (id, name, type, ext, mime, file, thumb, width, height, duration, size, palette,
+      `INSERT INTO items (id, name, type, ext, mime, file, thumb, preview, width, height, duration, size, palette,
         url, media_url, source, author, author_handle, author_avatar, text, description, notes, rating,
         posted_at, created_at, updated_at, color_hist)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`
     ).run(
       id,
       name,
@@ -157,6 +175,7 @@ export async function addItem(input) {
       mime || null,
       file,
       thumb,
+      preview,
       width || null,
       height || null,
       duration || null,
@@ -578,7 +597,7 @@ export function batch({ ids = [], action, tags = [], folderId, fromFolderId }) {
           db.prepare('UPDATE items SET deleted_at = NULL, updated_at = ? WHERE id = ?').run(now, id);
           break;
         case 'delete': {
-          const row = db.prepare('SELECT file, thumb, thumb_jxl, preview_jxl FROM items WHERE id = ?').get(id);
+          const row = db.prepare('SELECT file, thumb, preview, thumb_jxl, preview_jxl FROM items WHERE id = ?').get(id);
           if (row) removedFiles.push({ id, ...row });
           db.prepare('DELETE FROM items WHERE id = ?').run(id);
           break;
@@ -626,9 +645,10 @@ export function emptyTrash() {
   return batch({ ids, action: 'delete' });
 }
 
-function removeItemFiles({ id, thumb, thumb_jxl, preview_jxl }) {
+function removeItemFiles({ id, thumb, preview, thumb_jxl, preview_jxl }) {
   fs.rmSync(path.join(paths.files, id), { recursive: true, force: true });
   if (thumb) fs.rmSync(path.join(paths.thumbs, thumb), { force: true });
+  if (preview) fs.rmSync(path.join(paths.thumbs, preview), { force: true });
   if (thumb_jxl) fs.rmSync(path.join(paths.thumbs, thumb_jxl), { force: true });
   if (preview_jxl) fs.rmSync(path.join(paths.thumbs, preview_jxl), { force: true });
 }
@@ -738,5 +758,56 @@ async function runColorBackfill(pending) {
     });
     done++;
     if (done % 25 === 0) await new Promise((r) => setTimeout(r, 0));
+  }
+}
+
+/**
+ * Give HEIC/HEIF items the thumbnail and browser-safe preview they were imported without: sharp could read their
+ * dimensions but not their pixels, so they showed as files. Runs once per item; `preview = ''` marks one that
+ * couldn't be decoded, so it isn't tried again on every start.
+ */
+export function backfillHeicPreviews() {
+  const pending = db
+    .prepare(
+      `SELECT id, file FROM items
+       WHERE lower(ext) IN ('heic', 'heif') AND preview IS NULL AND file IS NOT NULL AND deleted_at IS NULL
+       ORDER BY created_at DESC`
+    )
+    .all();
+  if (!pending.length) return;
+  setTimeout(() => runHeicBackfill(pending), 1000);
+}
+
+async function runHeicBackfill(pending) {
+  let made = 0;
+  for (const row of pending) {
+    try {
+      const original = fs.readFileSync(path.join(paths.files, row.file));
+      const preview = await makeHeicPreview(original);
+      const thumb = await makeThumb(preview);
+      const palette = await extractPalette(preview);
+      const colorHist = await extractHistogram(preview);
+      const thumbName = `${row.id}.webp`;
+      const previewName = `${row.id}.preview.jpg`;
+      fs.writeFileSync(path.join(paths.thumbs, thumbName), thumb);
+      fs.writeFileSync(path.join(paths.thumbs, previewName), preview);
+      tx(() => {
+        db.prepare(
+          'UPDATE items SET thumb = ?, preview = ?, palette = ?, color_hist = ?, updated_at = ? WHERE id = ?'
+        ).run(thumbName, previewName, JSON.stringify(palette), colorHist, Date.now(), row.id);
+        db.prepare('DELETE FROM item_colors WHERE item_id = ?').run(row.id);
+        saveColors(row.id, palette);
+        saveHistogram(row.id, colorHist);
+      });
+      made++;
+      if (made % 5 === 0) bumpRevision();
+    } catch {
+      db.prepare("UPDATE items SET preview = '' WHERE id = ?").run(row.id);
+    }
+  }
+  if (made) {
+    bumpRevision();
+    kickEmbeddings();
+    kickJxlThumbs();
   }
 }

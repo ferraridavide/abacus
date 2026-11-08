@@ -30,6 +30,7 @@ const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 /** The item's visual, if it has one. Bookmarks and videos use their poster thumbnail. */
 function visualOf(item: Item) {
   if (item.thumbUrl) return item.thumbUrl;
+  if (item.previewUrl) return item.previewUrl;
   if (item.type === 'image' || item.type === 'gif') return item.fileUrl;
   return null;
 }
