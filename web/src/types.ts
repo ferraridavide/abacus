@@ -73,6 +73,31 @@ export type View =
   | { kind: 'folder'; id: string }
   | { kind: 'tag'; tag: string };
 
+/** How a board arranges its images: automatic waterfall, aligned grid, or free placement. */
+export type BoardMode = 'masonry' | 'grid' | 'free';
+
+/** Where an image sits on a free board and how large it is, in board coordinates. */
+export interface BoardSpot {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface BoardView {
+  x: number;
+  y: number;
+  s: number;
+}
+
+/** A folder's saved board: its arrangement of every image, and the camera last looking at it. */
+export interface FolderBoard {
+  mode: BoardMode;
+  view: BoardView | null;
+  spots: Record<string, BoardSpot>;
+  zOrder: string[];
+}
+
 export type SortKey = 'created' | 'posted' | 'name' | 'size' | 'dimensions' | 'rating' | 'random';
 export type AutoplayMode = 'never' | 'hover' | 'always';
 export type LayoutMode = 'masonry' | 'justified' | 'grid';

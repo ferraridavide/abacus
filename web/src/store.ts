@@ -7,6 +7,7 @@ import type {
   AutoplayMode,
   Filters,
   Folder,
+  FolderBoard,
   Item,
   Job,
   LayoutMode,
@@ -17,6 +18,7 @@ import type {
   View,
 } from './types';
 import { isVideoFile, probeVideo } from './lib/upload';
+import { boardVisual } from './lib/board';
 import { applyAppearance, cacheAppearance, cachedAppearance, resolveAppearance } from './lib/theme';
 
 export interface Toast {
@@ -86,8 +88,13 @@ interface State {
   details: 'selection' | 'view' | null;
   folderPicker: { mode: 'add' | 'move'; ids: string[] } | null;
   contextMenu: ContextMenuState | null;
-  /** the items shown on the moodboard canvas */
-  board: { ids: string[] } | null;
+  /**
+   * The board on screen: the items picked for it, or a whole folder with the arrangement saved on it.
+   * A folder board loads its items (`status: 'loading'`) before the canvas can show them.
+   */
+  board: { ids: string[]; folderId?: string; status: 'loading' | 'ready'; saved: FolderBoard | null } | null;
+  /** the images a folder board shows, in folder order */
+  boardItems: Item[];
   confirm: ConfirmState | null;
   renamingFolderId: string | null;
   jobs: Job[];
@@ -117,8 +124,11 @@ interface State {
   setSelection: (ids: string[]) => void;
   selectAll: () => Promise<void>;
   clearSelection: () => void;
-  /** Open the moodboard; defaults to the current selection, in grid order. */
+  /** Open the board; defaults to the current selection, in grid order. */
   openBoard: (ids?: string[]) => void;
+  /** Open a folder's board: every image it holds, arranged as it was last left and saved. */
+  openFolderBoard: (folderId: string) => Promise<void>;
+  closeBoard: () => void;
 
   updateItem: (id: string, patch: ItemPatch) => Promise<void>;
   batch: (action: BatchAction, ids: string[], extra?: { tags?: string[]; folderId?: string; fromFolderId?: string }) => Promise<void>;
@@ -138,6 +148,26 @@ interface State {
 let itemsRequest = 0;
 let appearanceRequest = 0;
 const PAGE = 200;
+/** bumps whenever the board is opened or closed, so a folder's items can't land on a board that moved on */
+let boardLoad = 0;
+const BOARD_PAGE = 1000;
+
+/** Every item in a folder, oldest first: a new board's waterfall then looks the same from one visit to the next. */
+async function folderBoardItems(folderId: string): Promise<Item[]> {
+  const all: Item[] = [];
+  for (;;) {
+    const page = await api.items({
+      view: 'folder',
+      folderId,
+      sort: 'created',
+      dir: 'asc',
+      limit: String(BOARD_PAGE),
+      offset: String(all.length),
+    });
+    all.push(...page.items);
+    if (!page.items.length || all.length >= page.total) return all;
+  }
+}
 
 /** Query-string for the current view, search, filters and sort. */
 function queryParams(s: Pick<State, 'view' | 'query' | 'filters' | 'sort' | 'seed'>) {
@@ -195,6 +225,7 @@ export const useStore = create<State>()(
       folderPicker: null,
       contextMenu: null,
       board: null,
+      boardItems: [],
       confirm: null,
       renamingFolderId: null,
       jobs: [],
@@ -350,11 +381,48 @@ export const useStore = create<State>()(
       openBoard: (ids) => {
         const list = ids ?? [...get().selected];
         if (!list.length) return;
+        boardLoad++;
         const order = new Map(get().items.map((item, i) => [item.id, i]));
         const ordered = [...list].sort(
           (a, b) => (order.get(a) ?? Number.MAX_SAFE_INTEGER) - (order.get(b) ?? Number.MAX_SAFE_INTEGER)
         );
-        set({ board: { ids: ordered }, contextMenu: null, viewerId: null, details: null, sidebarOpen: false });
+        set({
+          board: { ids: ordered, status: 'ready', saved: null },
+          boardItems: [],
+          contextMenu: null,
+          viewerId: null,
+          details: null,
+          sidebarOpen: false,
+        });
+      },
+
+      openFolderBoard: async (folderId) => {
+        const token = ++boardLoad;
+        set({
+          board: { ids: [], folderId, status: 'loading', saved: null },
+          boardItems: [],
+          selected: new Set(),
+          anchor: null,
+          contextMenu: null,
+          viewerId: null,
+          details: null,
+          sidebarOpen: false,
+        });
+        try {
+          const [items, saved] = await Promise.all([folderBoardItems(folderId), api.folderBoard(folderId)]);
+          if (token !== boardLoad) return;
+          const visuals = items.filter((item) => boardVisual(item));
+          set({ boardItems: visuals, board: { ids: visuals.map((i) => i.id), folderId, status: 'ready', saved } });
+        } catch (e) {
+          if (token !== boardLoad) return;
+          set({ board: null, boardItems: [] });
+          get().toast((e as Error).message, 'error');
+        }
+      },
+
+      closeBoard: () => {
+        boardLoad++;
+        set({ board: null, boardItems: [] });
       },
 
       updateItem: async (id, patch) => {

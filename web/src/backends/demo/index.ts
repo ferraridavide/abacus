@@ -1,5 +1,6 @@
 import { UnavailableError, type Backend, type BatchAction, type FolderPatch, type ItemPatch } from '../../api';
 import type { Folder, Item, ItemType, PaletteColor, Source, TagCount } from '../../types';
+import { normalizeBoard } from '../../lib/board';
 import { COLOR_MIN_SCORE, colorScore, hexToRgb, parseColor, rgbToOklab } from './color';
 import { openDemoDb } from './db';
 import { analyzeImage } from './media';
@@ -22,7 +23,8 @@ interface ItemRecord extends Omit<Item, 'fileUrl' | 'thumbUrl'> {
   hist: number[];
 }
 
-type FolderRecord = Omit<Folder, 'count' | 'cover'>;
+/** A folder as stored, holding its board as the JSON string the server would keep in its column. */
+type FolderRecord = Omit<Folder, 'count' | 'cover'> & { board?: string };
 
 /** What a new item is made from; the seed library uses it too. */
 export interface NewItem {
@@ -273,7 +275,8 @@ export async function createDemoBackend() {
         const cover = inside
           .filter((r) => r.hasThumb)
           .sort((a, b) => (b.folderAt[f.id] ?? 0) - (a.folderAt[f.id] ?? 0))[0];
-        return { ...f, count: inside.length, cover: cover ? (urls.get(thumbKey(cover.id)) ?? null) : null };
+        const { board: _board, ...rest } = f;
+        return { ...rest, count: inside.length, cover: cover ? (urls.get(thumbKey(cover.id)) ?? null) : null };
       });
   }
 
@@ -433,6 +436,25 @@ export async function createDemoBackend() {
       if (patch.sort !== undefined) f.sort = Number(patch.sort);
       await saveFolder(f);
       return folderOut(id);
+    },
+
+    async folderBoard(id) {
+      const f = folders.get(id);
+      if (!f) throw new Error('Not found');
+      try {
+        return normalizeBoard(f.board ? JSON.parse(f.board) : null);
+      } catch {
+        return normalizeBoard(null);
+      }
+    },
+
+    async saveFolderBoard(id, board) {
+      const f = folders.get(id);
+      if (!f) throw new Error('Not found');
+      const next = normalizeBoard(board);
+      f.board = JSON.stringify(next);
+      await saveFolder(f);
+      return next;
     },
 
     async deleteFolder(id) {

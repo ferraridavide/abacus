@@ -1,19 +1,30 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Columns3, Grid2x2, Images, Maximize2, Minus, MousePointer2, Plus, Scan, Sparkles, X } from 'lucide-react';
+import { Columns3, Grid2x2, Hand, Images, Loader2, Minus, MousePointer2, Plus, Scan, Sparkles, SquareDashedMousePointer, X } from 'lucide-react';
+import { api } from '../api';
 import { useStore } from '../store';
-import type { Item } from '../types';
-import { computeLayout, GAP } from '../lib/layout';
+import type { BoardSpot, FolderBoard, Item } from '../types';
+import { computeLayout, GAP, type Box } from '../lib/layout';
+import { arrangeFolder, boardVisual, snapshotBoard, tidyKeepingSizes, type BoardSnapshotInput } from '../lib/board';
 import { itemMeta } from '../lib/format';
 import { cls, useCompact } from './ui';
 import { originalSharper, Thumb, useSettled } from './Thumb';
 
 type Mode = 'masonry' | 'grid' | 'free';
+type Tool = 'select' | 'hand';
 type Point = { x: number; y: number };
 type View = { x: number; y: number; s: number };
+type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+type Placed = { x: number; y: number; w: number; h: number };
 type Gesture =
   | { kind: 'pan'; start: Point; view: View; moved: boolean; track: (Point & { t: number })[]; downAt: number; id: string | null }
   | { kind: 'pinch'; center: Point; distance: number; view: View }
-  | { kind: 'item'; id: string; start: Point; origin: Point; moved: boolean; downAt: number };
+  | { kind: 'move'; id: string; ids: string[]; start: Point; origins: Record<string, Placed>; moved: boolean; additive: boolean; downAt: number }
+  | { kind: 'marquee'; start: Point; add: boolean; moved: boolean; downAt: number };
+
+const TOOLS: { key: Tool; icon: ReactNode; label: string; hint: string }[] = [
+  { key: 'select', icon: <SquareDashedMousePointer size={15} />, label: 'Select', hint: 'V' },
+  { key: 'hand', icon: <Hand size={15} />, label: 'Pan', hint: 'H' },
+];
 
 const MODES: { key: Mode; icon: ReactNode; label: string }[] = [
   { key: 'masonry', icon: <Columns3 size={15} />, label: 'Waterfall' },
@@ -23,16 +34,24 @@ const MODES: { key: Mode; icon: ReactNode; label: string }[] = [
 
 const MIN_ZOOM = 0.08;
 const MAX_ZOOM = 4;
+/** the smallest an image can be dragged down to, in board pixels */
+const MIN_TILE = 48;
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 const midpoint = (a: Point, b: Point) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
-
-/** The item's visual, if it has one. Bookmarks and videos use their poster thumbnail. */
-function visualOf(item: Item) {
-  if (item.thumbUrl) return item.thumbUrl;
-  if (item.type === 'image' || item.type === 'gif') return item.fileUrl;
-  return null;
-}
+const normRect = (a: Point, b: Point): Placed => ({
+  x: Math.min(a.x, b.x),
+  y: Math.min(a.y, b.y),
+  w: Math.abs(b.x - a.x),
+  h: Math.abs(b.y - a.y),
+});
+const overlaps = (a: Placed, b: Placed) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+const toggleId = (ids: Set<string>, id: string) => {
+  const next = new Set(ids);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  return next;
+};
 
 /**
  * A board tile's picture: the thumbnail, and the original faded in over it once zooming in shows the thumbnail bigger
@@ -73,14 +92,25 @@ function BoardImage({ item, src, tile, fit }: { item: Item; src: string; tile: {
 }
 
 /**
- * A free-form canvas holding the selected references together: the same pictures in one place, for
- * comparing and arranging them. Waterfall and grid lay them out automatically; free leaves every
- * image where you drop it, on a pannable, zoomable surface.
+ * A free-form canvas for comparing and arranging images. Free leaves every image where you drop it, on a pannable,
+ * zoomable surface; waterfall and grid lay them out automatically.
+ *
+ * Opened on a folder, the canvas holds every image it contains and the folder keeps the arrangement: each image's
+ * place and size, the arrangement itself and the camera are saved on the folder, so coming back to it shows the same
+ * board. Images added later are laid out and parked beside what is already there. Without a folder (items picked out
+ * of the grid) the board lives only as long as it is open.
  */
 export function Board() {
   const board = useStore((s) => s.board);
+  const boardItems = useStore((s) => s.boardItems);
   const allItems = useStore((s) => s.items);
+  const folders = useStore((s) => s.folders);
   const compact = useCompact();
+
+  const folderId = board?.folderId;
+  const folderName = folderId ? folders.find((f) => f.id === folderId)?.name : undefined;
+  // a board opens as a whole, so this is what tells one board from the next
+  const boardKey = folderId ? `folder:${folderId}` : 'selection';
 
   const stageRef = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState({ w: 0, h: 0 });
@@ -97,12 +127,27 @@ export function Board() {
   }, []);
   useEffect(() => stopFling, [stopFling]);
   const [ready, setReady] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const [fitNonce, setFitNonce] = useState(0);
-  /** free-mode positions, by item id; missing items keep their place in the waterfall */
-  const [spots, setSpots] = useState<Record<string, Point>>({});
+  const [saveState, setSaveState] = useState<SaveState>('idle');
+  /** free-mode places and sizes, by item id */
+  const [spots, setSpots] = useState<Record<string, BoardSpot>>({});
   const [zOrder, setZOrder] = useState<string[]>([]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [resizingId, setResizingId] = useState<string | null>(null);
   const [panning, setPanning] = useState(false);
+  /** free-mode tool: select images, or pan the canvas. Resize stays on the select tool. */
+  const [tool, setTool] = useState<Tool>('select');
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [marquee, setMarquee] = useState<Placed | null>(null);
+  const [spaceHeld, setSpaceHeld] = useState(false);
+  const pickedRef = useRef(picked);
+  pickedRef.current = picked;
+  const toolRef = useRef(tool);
+  toolRef.current = tool;
+  /** the tool to restore when a right-button pan ends; null while the right button is up */
+  const toolBeforeRight = useRef<Tool | null>(null);
+  const rightPointer = useRef<number | null>(null);
   // promoted to its own layer only while the view moves: a layer keeps the bitmap it was drawn at, so leaving it on
   // would show a zoomed-in board as an enlarged low-resolution picture of itself
   const [moving, setMoving] = useState(false);
@@ -112,15 +157,28 @@ export function Board() {
     return () => clearTimeout(timer);
   }, [view]);
 
+  // ----- the arrangement that is saved -----
+  /** the board as it came from the server, for the places of images that have since left the folder */
+  const loaded = useRef<FolderBoard | null>(null);
+  /** the JSON last stored, so an unchanged board is never sent again */
+  const lastSaved = useRef('');
+  /** which save is the latest: a slow answer must not overwrite a newer one */
+  const saving = useRef(0);
+  /** what the board looks like right now, for a save on the way out */
+  const held = useRef<{ folderId: string; input: BoardSnapshotInput } | null>(null);
+  /** a saved camera was just restored: frame it next time, don't fit */
+  const restoredView = useRef(false);
+  /** the frame key last framed, so a resized window doesn't refit a board that was already framed */
+  const framed = useRef('');
+
   const byId = useMemo(() => new Map(allItems.map((item) => [item.id, item])), [allItems]);
-  const items = useMemo(
-    () =>
-      (board?.ids ?? []).flatMap((id) => {
-        const item = byId.get(id);
-        return item && visualOf(item) ? [item] : [];
-      }),
-    [board?.ids, byId]
-  );
+  const items = useMemo(() => {
+    if (folderId) return boardItems;
+    return (board?.ids ?? []).flatMap((id) => {
+      const item = byId.get(id);
+      return item && boardVisual(item) ? [item] : [];
+    });
+  }, [folderId, boardItems, board?.ids, byId]);
   const itemKey = items.map((i) => i.id).join('|');
 
   // One wide canvas of tiles: roughly as many columns as the screen affords, capped so images stay useful.
@@ -134,14 +192,24 @@ export function Board() {
   const masonry = useMemo(() => computeLayout(items, layoutWidth, 'masonry', tile, 0), [items, layoutWidth, tile]);
   const grid = useMemo(() => computeLayout(items, layoutWidth, 'grid', tile, 0), [items, layoutWidth, tile]);
 
+  /** items without a saved place: on a folder board they are the ones that arrived after the arrangement was saved */
+  const unplaced = useMemo(
+    () => (folderId ? items.filter((item) => !spots[item.id]) : []),
+    [folderId, items, spots]
+  );
+
   const boxes = useMemo(() => {
     if (mode === 'grid') return grid.boxes;
     if (mode === 'masonry') return masonry.boxes;
+    if (folderId) {
+      const fresh = unplaced.length ? computeLayout(unplaced, layoutWidth, 'masonry', tile, 0).boxes : [];
+      return arrangeFolder(items.map((i) => i.id), masonry.boxes, fresh, spots);
+    }
     return masonry.boxes.map((box, i) => {
       const spot = spots[items[i].id];
-      return spot ? { ...box, x: spot.x, y: spot.y } : box;
+      return spot ? { x: spot.x, y: spot.y, w: spot.w, h: spot.h } : box;
     });
-  }, [mode, grid.boxes, masonry.boxes, spots, items]);
+  }, [mode, folderId, grid.boxes, masonry.boxes, spots, items, unplaced, layoutWidth, tile]);
 
   const bounds = useMemo(() => {
     if (!boxes.length) return null;
@@ -157,6 +225,8 @@ export function Board() {
     }
     return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
   }, [boxes]);
+  const boundsRef = useRef(bounds);
+  boundsRef.current = bounds;
 
   const measure = useCallback(() => {
     const el = stageRef.current;
@@ -191,13 +261,130 @@ export function Board() {
   const fitRef = useRef(fit);
   fitRef.current = fit;
 
-  // Frame the whole board whenever it opens, changes arrangement or gets resized. Free-mode drags
-  // move `bounds`, so it is deliberately not a dependency: the board shouldn't refit mid-drag.
+  // A board replaces the one before it: restore what the folder saved, or start a picked board from its waterfall.
+  // `saved` is read here rather than depended on: the store sets it together with `status`, in one state change.
   useEffect(() => {
-    if (!board || !stage.w || !stage.h || !bounds) return;
-    fitRef.current();
+    if (!board) return;
+    setPicked(new Set());
+    setTool('select');
+    setMarquee(null);
+    if (board.status !== 'ready') {
+      // the folder's images are still on their way: keep the canvas hidden until they are all in
+      setReady(false);
+      setHydrated(false);
+      framed.current = '';
+      return;
+    }
+    setReady(false);
+    framed.current = '';
+    restoredView.current = false;
+    if (!board.folderId) {
+      held.current = null;
+      loaded.current = null;
+      setSpots({});
+      setZOrder([]);
+      setMode('masonry');
+      setHydrated(true);
+      return;
+    }
+    const saved = board.saved;
+    loaded.current = saved;
+    lastSaved.current = JSON.stringify(saved);
+    // a folder that already keeps an arrangement says so before anything is touched
+    const arranged = !!saved && (saved.mode !== 'free' || !!saved.view || saved.zOrder.length > 0 || Object.keys(saved.spots).length > 0);
+    setSaveState(arranged ? 'saved' : 'idle');
+    setSpots(saved?.spots ?? {});
+    setZOrder(saved?.zOrder ?? []);
+    setMode(saved?.mode ?? 'free');
+    if (saved?.view) setView(saved.view);
+    // the arrangement is framed where it was left, not refitted to this window
+    restoredView.current = Boolean(saved?.view);
+    setHydrated(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardKey, board?.status]);
+
+  // Frame the whole board when it opens, changes arrangement or gets resized. A board opened with a saved
+  // camera keeps it. Free-mode drags move `bounds`, so it is deliberately not a dependency: the board
+  // shouldn't refit mid-drag.
+  useEffect(() => {
+    if (!board || board.status !== 'ready' || !hydrated) return;
+    if (!stage.w || !stage.h || !boundsRef.current) return;
+    const key = `${boardKey}|${mode}|${fitNonce}|${itemKey}`;
+    if (framed.current === key) return;
+    framed.current = key;
+    if (folderId && restoredView.current) restoredView.current = false;
+    else fitRef.current();
     setReady(true);
-  }, [board, itemKey, mode, stage.w, stage.h, fitNonce]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board, boardKey, mode, stage.w, stage.h, itemKey, fitNonce, hydrated, folderId]);
+
+  // ----- saving -----
+
+  const persist = useCallback((folder: string, input: BoardSnapshotInput) => {
+    const next = snapshotBoard(input);
+    const body = JSON.stringify(next);
+    if (body === lastSaved.current) return;
+    // claimed before it is sent, so a debounced save and a closing one don't both send it
+    lastSaved.current = body;
+    const run = ++saving.current;
+    setSaveState('saving');
+    api.saveFolderBoard(folder, next).then(
+      (stored) => {
+        if (run !== saving.current) return;
+        lastSaved.current = JSON.stringify(stored);
+        loaded.current = stored;
+        if (useStore.getState().board?.folderId === folder) setSaveState('saved');
+      },
+      () => {
+        if (run !== saving.current) return;
+        // forget the claim, so the next change tries again
+        lastSaved.current = '';
+        if (useStore.getState().board?.folderId === folder) setSaveState('error');
+      }
+    );
+  }, []);
+
+  const flush = useCallback(() => {
+    const now = held.current;
+    if (now) persist(now.folderId, now.input);
+  }, [persist]);
+
+  const canPersist = !!folderId && board?.status === 'ready' && hydrated && ready && items.length > 0;
+  if (canPersist) {
+    held.current = {
+      folderId: folderId!,
+      input: { mode, view, ids: items.map((i) => i.id), boxes, free: spots, previous: loaded.current?.spots ?? {}, zOrder },
+    };
+  }
+
+  useEffect(() => {
+    if (!canPersist) return;
+    // a drag or a pan settles first; the arrangement is small, and one save per gesture is enough
+    const timer = setTimeout(flush, 450);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canPersist, flush, spots, mode, view, zOrder, itemKey]);
+
+  // A folder board starts from its waterfall: freezing the places it is shown at gives the folder an arrangement
+  // from its first look. Only missing places are filled, so a drag already under way is never undone.
+  useEffect(() => {
+    if (!folderId || mode !== 'free' || !ready) return;
+    const seed = items.flatMap((item, i) => {
+      const box = boxes[i];
+      if (!box || spots[item.id]) return [];
+      return [{ id: item.id, spot: { x: box.x, y: box.y, w: box.w, h: box.h } }];
+    });
+    if (!seed.length) return;
+    setSpots((p) => {
+      const next = { ...p };
+      for (const { id, spot } of seed) if (!next[id]) next[id] = spot;
+      return next;
+    });
+    // `boxes` and `spots` are read as rendered; depending on them would loop with the state this writes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [folderId, mode, ready, itemKey]);
+
+  // ----- view gestures -----
 
   const zoomAt = useCallback((factor: number, cx?: number, cy?: number) => {
     const el = stageRef.current;
@@ -237,6 +424,12 @@ export function Board() {
     return () => el.removeEventListener('wheel', onWheel);
   }, [board, zoomAt]);
 
+  // Closing saves what is on screen: the last drag may be inside the save delay.
+  const close = useCallback(() => {
+    flush();
+    useStore.getState().closeBoard();
+  }, [flush]);
+
   useEffect(() => {
     if (!board) return;
     const onKey = (e: KeyboardEvent) => {
@@ -244,12 +437,22 @@ export function Board() {
       const s = useStore.getState();
       // a preview or a dialog on top of the board owns Escape
       if (s.viewerId || s.settingsOpen || s.importOpen || s.confirm || s.folderPicker || s.details) return;
+      if (e.key === ' ') {
+        e.preventDefault();
+        if (!e.repeat) setSpaceHeld(true);
+        return;
+      }
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopImmediatePropagation();
-        s.set({ board: null });
+        if (pickedRef.current.size) setPicked(new Set());
+        else close();
       } else if (e.metaKey || e.ctrlKey || e.altKey) {
         return;
+      } else if (e.key === 'v') {
+        setTool('select');
+      } else if (e.key === 'h') {
+        setTool('hand');
       } else if (e.key === '+' || e.key === '=') {
         e.preventDefault();
         zoomAt(1.25);
@@ -261,9 +464,17 @@ export function Board() {
         fitRef.current();
       }
     };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === ' ') setSpaceHeld(false);
+    };
     window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [board, zoomAt]);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('keyup', onKeyUp);
+      setSpaceHeld(false);
+    };
+  }, [board, zoomAt, close]);
 
   // ----- gestures -----
   // Every pointer down on the stage is tracked, on an image or not. One pans the canvas (or, in free mode, moves the
@@ -277,6 +488,10 @@ export function Board() {
     const r = stageRef.current!.getBoundingClientRect();
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   };
+  const toWorld = (point: Point): Point => ({
+    x: (point.x - viewRef.current.x) / viewRef.current.s,
+    y: (point.y - viewRef.current.y) / viewRef.current.s,
+  });
 
   const startPan = (point: Point, moved: boolean, id: string | null = null): Gesture => ({
     kind: 'pan',
@@ -295,10 +510,52 @@ export function Board() {
 
   const bringToFront = (id: string) => setZOrder((z) => [...z.filter((x) => x !== id), id]);
 
+  /** Give every image as shown a place of its own, so moving or resizing one leaves the rest untouched. */
+  const seedPlaces = () => {
+    if (!folderId || !unplaced.length) return;
+    setSpots((p) => {
+      const next = { ...p };
+      items.forEach((item, i) => {
+        const current = boxes[i];
+        if (current && !next[item.id]) next[item.id] = { x: current.x, y: current.y, w: current.w, h: current.h };
+      });
+      return next;
+    });
+  };
+
+  // A corner of an image is dragged with its own listeners: the canvas never sees this gesture, so it can't pan.
+  const beginResize = (id: string, box: Box, clientX: number, clientY: number) => {
+    stopFling();
+    bringToFront(id);
+    seedPlaces();
+    const start = { x: clientX, y: clientY, w: box.w, h: box.h, s: viewRef.current.s, ox: box.x, oy: box.y };
+    setResizingId(id);
+    const onMove = (ev: PointerEvent) => {
+      const w = Math.max(MIN_TILE, Math.round(start.w + (ev.clientX - start.x) / start.s));
+      const h = Math.max(MIN_TILE, Math.round(start.h + (ev.clientY - start.y) / start.s));
+      setSpots((p) => ({ ...p, [id]: { x: p[id]?.x ?? start.ox, y: p[id]?.y ?? start.oy, w, h } }));
+    };
+    const onUp = () => {
+      setResizingId(null);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  };
+  const startResize = (e: React.PointerEvent, item: Item, box: Box) => {
+    e.preventDefault();
+    e.stopPropagation();
+    beginResize(item.id, box, e.clientX, e.clientY);
+  };
+
   const onStagePointerDown = (e: React.PointerEvent) => {
-    if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1) return;
+    if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1 && e.button !== 2) return;
     const target = e.target as HTMLElement;
-    if (target.closest('button') || pointers.current.size >= 2) return;
+    // the right button is a temporary hand: it pans even when it lands on a control
+    if (e.button !== 2 && (target.closest('button') || pointers.current.size >= 2)) return;
     stopFling();
     if (e.pointerType === 'touch') lastTouch.current = Date.now();
     const point = localPoint(e);
@@ -307,22 +564,45 @@ export function Board() {
     const itemEl = target.closest<HTMLElement>('.board-item');
     (itemEl ?? e.currentTarget).setPointerCapture(e.pointerId);
 
-    if (pointers.current.size === 2) {
+    // a held right button is a pan, not the second finger of a pinch
+    if (pointers.current.size === 2 && e.button !== 2) {
       gesture.current = startPinch();
       setDraggingId(null);
       setPanning(true);
       return;
     }
     const id = itemEl?.dataset.id ?? null;
-    const box = id ? boxes[items.findIndex((i) => i.id === id)] : undefined;
-    if (mode === 'free' && id && box && e.button === 0) {
-      gesture.current = { kind: 'item', id, start: point, origin: { x: box.x, y: box.y }, moved: false, downAt: performance.now() };
-      setDraggingId(id);
-      bringToFront(id);
-    } else {
-      gesture.current = startPan(point, false, id);
-      if (!itemEl) setPanning(true);
+    const index = id ? items.findIndex((i) => i.id === id) : -1;
+    const box = index >= 0 ? boxes[index] : undefined;
+    const additive = e.shiftKey || e.metaKey || e.ctrlKey;
+    if (e.button === 2) {
+      e.preventDefault();
+      rightPointer.current = e.pointerId;
+      if (toolBeforeRight.current === null) toolBeforeRight.current = toolRef.current;
+      toolRef.current = 'hand';
+      setTool('hand');
     }
+    const wantPan = mode !== 'free' || toolRef.current === 'hand' || spaceHeld || e.button === 1 || e.button === 2 || e.altKey;
+    if (mode === 'free' && toolRef.current === 'select' && e.button === 0 && !wantPan && id && box) {
+      seedPlaces();
+      const selection = pickedRef.current;
+      const group = !additive && selection.has(id) ? [...selection] : [id];
+      const origins: Record<string, Placed> = {};
+      for (const gid of group) {
+        const at = items.findIndex((item) => item.id === gid);
+        const placed = at >= 0 ? boxes[at] : undefined;
+        if (placed) origins[gid] = { x: placed.x, y: placed.y, w: placed.w, h: placed.h };
+      }
+      gesture.current = { kind: 'move', id, ids: group, start: point, origins, moved: false, additive, downAt: performance.now() };
+      bringToFront(id);
+      return;
+    }
+    if (mode === 'free' && toolRef.current === 'select' && e.button === 0 && !wantPan && !id && e.pointerType !== 'touch') {
+      gesture.current = { kind: 'marquee', start: toWorld(point), add: additive, moved: false, downAt: performance.now() };
+      return;
+    }
+    gesture.current = startPan(point, false, id);
+    if (!itemEl) setPanning(true);
   };
 
   const onStagePointerMove = (e: React.PointerEvent) => {
@@ -341,15 +621,44 @@ export function Board() {
       setView({ s: sc, x: c.x - wx * sc, y: c.y - wy * sc });
       return;
     }
+    if (g.kind === 'marquee') {
+      const rect = normRect(g.start, toWorld(point));
+      if (rect.w > 3 || rect.h > 3) g.moved = true;
+      setMarquee(rect);
+      return;
+    }
+    if (g.kind === 'move') {
+      const dx = point.x - g.start.x;
+      const dy = point.y - g.start.y;
+      if (!g.moved && Math.hypot(dx, dy) < (e.pointerType === 'touch' ? 8 : 3)) return;
+      if (!g.moved) {
+        g.moved = true;
+        setPicked(new Set(g.ids));
+        setDraggingId(g.id);
+        setZOrder((z) => [...z.filter((id) => !g.ids.includes(id)), ...g.ids]);
+      }
+      const s = viewRef.current.s;
+      const wx = dx / s;
+      const wy = dy / s;
+      setSpots((p) => {
+        const next = { ...p };
+        // freeze the rest first: a folder board parks images that have no place yet, and that would jump them
+        items.forEach((item, i) => {
+          const placed = boxes[i];
+          if (placed && !next[item.id]) next[item.id] = { x: placed.x, y: placed.y, w: placed.w, h: placed.h };
+        });
+        for (const id of g.ids) {
+          const origin = g.origins[id];
+          if (origin) next[id] = { x: origin.x + wx, y: origin.y + wy, w: origin.w, h: origin.h };
+        }
+        return next;
+      });
+      return;
+    }
     const dx = point.x - g.start.x;
     const dy = point.y - g.start.y;
     if (!g.moved && Math.hypot(dx, dy) < (e.pointerType === 'touch' ? 8 : 3)) return;
     g.moved = true;
-    if (g.kind === 'item') {
-      const s = viewRef.current.s;
-      setSpots((p) => ({ ...p, [g.id]: { x: g.origin.x + dx / s, y: g.origin.y + dy / s } }));
-      return;
-    }
     setPanning(true);
     const t = performance.now();
     g.track = [...g.track.filter((q) => t - q.t < 100), { ...point, t }];
@@ -357,6 +666,15 @@ export function Board() {
   };
 
   const onStagePointerUp = (e: React.PointerEvent) => {
+    if (e.pointerId === rightPointer.current) {
+      rightPointer.current = null;
+      const back = toolBeforeRight.current;
+      toolBeforeRight.current = null;
+      if (back !== null) {
+        toolRef.current = back;
+        setTool(back);
+      }
+    }
     if (!pointers.current.has(e.pointerId)) return;
     const point = localPoint(e);
     pointers.current.delete(e.pointerId);
@@ -379,10 +697,26 @@ export function Board() {
     gesture.current = null;
     setPanning(false);
     setDraggingId(null);
+    if (g.kind === 'marquee') setMarquee(null);
     if (e.type === 'pointercancel') return;
 
+    if (g.kind === 'marquee') {
+      if (g.moved) {
+        const rect = normRect(g.start, toWorld(point));
+        const hits = items.flatMap((item, i) => (boxes[i] && overlaps(boxes[i], rect) ? [item.id] : []));
+        setPicked(g.add ? new Set([...pickedRef.current, ...hits]) : new Set(hits));
+      } else if (!g.add) {
+        setPicked(new Set());
+      }
+      return;
+    }
+    if (g.kind === 'move' && !g.moved) {
+      setPicked(g.additive ? toggleId(pickedRef.current, g.id) : new Set([g.id]));
+      if (e.pointerType === 'touch' && performance.now() - g.downAt < 300) onTap(point, g.id);
+      return;
+    }
     if (g.kind === 'pan' && g.moved && e.pointerType === 'touch') fling(g.track);
-    if (!g.moved && e.pointerType === 'touch' && performance.now() - g.downAt < 300) onTap(point, g.id);
+    if (g.kind === 'pan' && !g.moved && e.pointerType === 'touch' && performance.now() - g.downAt < 300) onTap(point, g.id);
   };
 
   // Touch screens don't reliably send double-clicks, so double taps are told apart here: on an image it opens the
@@ -426,41 +760,90 @@ export function Board() {
     flingRef.current = requestAnimationFrame(step);
   };
 
-  const close = () => useStore.getState().set({ board: null });
   const openViewer = (item: Item) => useStore.getState().set({ viewerId: item.id });
 
+  // Taking an image off a picked board is fine; a folder board shows the folder, so its images come and go with it.
   const remove = (id: string) => {
     const s = useStore.getState();
-    if (!s.board) return;
+    if (!s.board || s.board.folderId) return;
     const ids = s.board.ids.filter((x) => x !== id);
-    s.set({ board: ids.length ? { ...s.board, ids } : null });
-    setSpots((p) => {
-      const next = { ...p };
-      delete next[id];
+    if (ids.length) s.set({ board: { ...s.board, ids } });
+    else s.closeBoard();
+    setZOrder((z) => z.filter((x) => x !== id));
+    setPicked((ids) => {
+      if (!ids.has(id)) return ids;
+      const next = new Set(ids);
+      next.delete(id);
       return next;
     });
-    setZOrder((z) => z.filter((x) => x !== id));
   };
 
+  const tidyTargets = picked.size > 1 ? items.filter((item) => picked.has(item.id)) : items;
+
+  // Pack the selection (or the whole board) into rows, keeping each image the size it already has.
   const tidy = () => {
-    setSpots({});
-    setFitNonce((n) => n + 1);
+    if (tidyTargets.length < 2) return;
+    if (mode !== 'free') setMode('free');
+    const chosen = new Set(tidyTargets.map((item) => item.id));
+    const current = tidyTargets.flatMap((item) => {
+      const at = items.findIndex((candidate) => candidate.id === item.id);
+      const box = at >= 0 ? boxes[at] : undefined;
+      return box ? [box] : [];
+    });
+    if (current.length < 2) return;
+    const packed = tidyKeepingSizes(current, GAP);
+    setSpots((prev) => {
+      const next = { ...prev };
+      items.forEach((item, i) => {
+        const box = boxes[i];
+        if (!box || chosen.has(item.id)) return;
+        next[item.id] = { x: box.x, y: box.y, w: box.w, h: box.h };
+      });
+      tidyTargets.forEach((item, i) => {
+        const box = packed[i];
+        if (box) next[item.id] = { x: box.x, y: box.y, w: box.w, h: box.h };
+      });
+      return next;
+    });
+    if (picked.size <= 1) setFitNonce((n) => n + 1);
   };
 
   if (!board) return null;
+
+  const saveLabel =
+    board.status !== 'ready'
+      ? 'Opening…'
+      : saveState === 'saving'
+        ? 'Saving…'
+        : saveState === 'error'
+          ? 'Not saved'
+          : saveState === 'saved'
+            ? 'Saved'
+            : '';
+  const count =
+    board.ids.length > items.length
+      ? `${items.length} of ${board.ids.length}`
+      : `${items.length} reference${board.ids.length === 1 ? '' : 's'}`;
 
   return (
     <div className="board">
       <header className="board-bar">
         <div className="board-title">
-          <h2>Moodboard</h2>
+          <h2>{folderName || 'Board'}</h2>
           <span
             className="board-count"
-            title={board.ids.length > items.length ? 'Some selected items have not loaded in the grid yet' : undefined}
+            title={board.ids.length > items.length ? 'Some items of this board are still loading' : undefined}
           >
-            {board.ids.length > items.length ? `${items.length} of ${board.ids.length}` : items.length} reference
-            {board.ids.length === 1 ? '' : 's'}
+            {picked.size ? `${picked.size} selected` : count}
           </span>
+          {folderId && (
+            <span
+              className={cls('board-save', saveState === 'error' && 'error')}
+              title="The folder keeps this arrangement: every image's place, the layout and the view"
+            >
+              {saveLabel}
+            </span>
+          )}
         </div>
         <div className="board-tools">
           <div className="board-seg" role="group" aria-label="Arrangement">
@@ -477,10 +860,34 @@ export function Board() {
               </button>
             ))}
           </div>
-          {mode === 'free' && items.length > 1 && (
-            <button className="board-tidy" title="Tidy up" onClick={tidy}>
+          {mode === 'free' && (
+            <div className="board-seg" role="group" aria-label="Tools">
+              {TOOLS.map((entry) => (
+                <button
+                  key={entry.key}
+                  className={cls(tool === entry.key && 'on')}
+                  title={`${entry.label} (${entry.hint})`}
+                  aria-pressed={tool === entry.key}
+                  onClick={() => setTool(entry.key)}
+                >
+                  {entry.icon}
+                  {!compact && <span>{entry.label}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+          {mode === 'free' && tidyTargets.length > 1 && (
+            <button
+              className="board-tidy"
+              title={
+                picked.size > 1
+                  ? `Tidy ${picked.size} selected, keeping their sizes`
+                  : 'Tidy up, keeping each image’s size'
+              }
+              onClick={tidy}
+            >
               <Sparkles size={14} />
-              {!compact && <span>Tidy</span>}
+              {!compact && <span>{picked.size > 1 ? 'Tidy selection' : 'Tidy'}</span>}
             </button>
           )}
           <div className="board-zoom">
@@ -505,7 +912,11 @@ export function Board() {
 
       <div
         ref={stageRef}
-        className={cls('board-stage', panning && 'panning')}
+        className={cls(
+          'board-stage',
+          (panning || spaceHeld || (mode === 'free' && tool === 'hand')) && 'panning',
+          mode === 'free' && tool === 'select' && !spaceHeld && 'selecting'
+        )}
         style={{ backgroundPosition: `${view.x}px ${view.y}px` }}
         onPointerDown={onStagePointerDown}
         onPointerMove={onStagePointerMove}
@@ -523,7 +934,7 @@ export function Board() {
         >
           {items.map((item, i) => {
             const box = boxes[i];
-            const src = visualOf(item);
+            const src = boardVisual(item);
             if (!box || !src) return null;
             const z = zOrder.indexOf(item.id);
             return (
@@ -533,7 +944,9 @@ export function Board() {
                   'board-item',
                   mode === 'grid' && 'grid',
                   mode === 'free' && 'free',
-                  draggingId === item.id && 'dragging'
+                  draggingId === item.id && 'dragging',
+                  resizingId === item.id && 'resizing',
+                  picked.has(item.id) && 'picked'
                 )}
                 style={{
                   transform: `translate3d(${box.x}px, ${box.y}px, 0)`,
@@ -562,28 +975,55 @@ export function Board() {
                   <div className="bi-meta">{itemMeta(item)}</div>
                 </div>
                 <div className="board-item-actions" onPointerDown={(e) => e.stopPropagation()}>
-                  <button title="Open preview (double-click)" onClick={() => openViewer(item)}>
-                    <Maximize2 size={14} />
+                  <button title="Full screen (double-click)" onClick={() => openViewer(item)}>
+                    <Scan size={14} />
                   </button>
-                  <button className="danger" title="Remove from moodboard" onClick={() => remove(item.id)}>
-                    <X size={14} />
-                  </button>
+                  {!folderId && (
+                    <button className="danger" title="Remove from board" onClick={() => remove(item.id)}>
+                      <X size={14} />
+                    </button>
+                  )}
                 </div>
+                {mode === 'free' && tool === 'select' && (
+                  <button
+                    className="board-item-resize"
+                    title="Drag to resize"
+                    aria-label={`Resize ${item.name}`}
+                    onPointerDown={(e) => startResize(e, item, box)}
+                  />
+                )}
               </div>
             );
           })}
+          {marquee && (
+            <div
+              className="board-marquee"
+              style={{ transform: `translate(${marquee.x}px, ${marquee.y}px)`, width: marquee.w, height: marquee.h }}
+            />
+          )}
         </div>
 
-        {!items.length && (
+        {board.status !== 'ready' && (
+          <div className="board-empty">
+            <Loader2 size={34} className="spin" strokeWidth={1.6} />
+            <h3>Opening the board</h3>
+            <p>Loading every image in this folder.</p>
+          </div>
+        )}
+        {board.status === 'ready' && !items.length && (
           <div className="board-empty">
             <Images size={40} strokeWidth={1.3} />
             <h3>Nothing to show</h3>
-            <p>The selected items have no preview images.</p>
+            <p>{folderId ? 'This folder has no images to arrange yet.' : 'The selected items have no preview images.'}</p>
           </div>
         )}
-        {items.length > 0 && (
+        {board.status === 'ready' && items.length > 0 && (
           <div className="board-hint">
-            {mode === 'free' ? 'Drag images to arrange · Drag the canvas to pan · Scroll to zoom' : 'Drag to pan · Scroll to zoom'}
+            {mode === 'free'
+              ? tool === 'select'
+                ? 'Click or drag to select · Shift adds · Right-click pans · Drag a corner to resize'
+                : 'Drag to pan · V to select · Scroll to zoom'
+              : 'Drag to pan · Scroll to zoom'}
           </div>
         )}
       </div>

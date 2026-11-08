@@ -64,6 +64,25 @@ export const schemas = {
   }, ['id', 'name', 'parentId', 'count']),
   FolderCreate: object(folderFields),
   FolderPatch: object({ ...folderFields, sort: number }),
+  BoardSpot: object({ x: number, y: number, w: number, h: number }, ['x', 'y', 'w', 'h']),
+  FolderBoard: {
+    type: 'object',
+    properties: {
+      mode: { type: 'string', enum: ['masonry', 'grid', 'free'], description: 'How the board arranges its images. Falls back to free.' },
+      view: {
+        ...object({ x: number, y: number, s: number }, ['x', 'y', 's']),
+        nullable: true,
+        description: 'The camera last used on the board; null until one is saved.',
+      },
+      spots: {
+        type: 'object',
+        additionalProperties: ref('BoardSpot'),
+        description: 'Where each image sits and how large it is, by item ID, in board coordinates.',
+      },
+      zOrder: { ...strings, description: 'Item IDs from back to front; images missing here sit at the back.' },
+    },
+    additionalProperties: false,
+  },
   TagCount: object({ name: string, count: integer }, ['name', 'count']),
   Stats: object({ all: integer, uncategorized: integer, untagged: integer, trash: integer, totalSize: number }),
   Bootstrap: {

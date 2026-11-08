@@ -24,7 +24,7 @@ export function SelectionBar() {
         <Info size={18} />
       </button>
       {ids.length > 1 && (
-        <button className="icon-btn" title="Open in moodboard" onClick={() => openBoard(ids)}>
+        <button className="icon-btn" title="Open in board" onClick={() => openBoard(ids)}>
           <Images size={18} />
         </button>
       )}
