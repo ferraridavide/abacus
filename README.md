@@ -233,3 +233,22 @@ Set `AUTH_PASSWORD` to require a web login; creating API keys does not enable th
 | `DATA_DIR/thumbs/`       | WebP and JPEG XL thumbnails.   |
 
 To back up a library, copy `DATA_DIR` while the server is stopped.
+
+### Library folder
+
+The library can be kept in any folder the server can reach, for example a synced folder, an external drive, or a
+network share (`\\nas\photos\abacus`, `/mnt/nas/abacus`). Open **Settings → Storage → Library folder**, click
+**Change…**, then browse to a folder or type its path.
+
+- **Move library here** copies the database, files, and thumbnails into the folder, then restarts the library
+  there. The library keeps working while the files copy.
+- If the folder already holds a library, click **Open this library** to switch to it, or click **Replace with this
+  library** to overwrite it.
+
+The old folder isn't changed; delete it yourself when you no longer need it. The choice is saved in
+`DATA_DIR/data-location.json`. Delete that file to go back to `DATA_DIR`.
+
+Outside `DATA_DIR`, the database is opened exclusively, which works on network shares. Only one server can use a
+library at a time; a second server is told the library is in use. If the folder is missing at startup, such as an
+unmounted share, the server answers every request with `503` and tries again every 10 seconds. It never creates
+an empty library in place of the missing one. In Docker, the folder must be mounted into the container.

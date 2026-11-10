@@ -4,9 +4,11 @@ import type {
   Appearance,
   AppearanceChoice,
   CreatedApiKey,
+  DataLocation,
   EmbeddingStatus,
   Folder,
   FolderBoard,
+  FolderListing,
   Item,
   ItemEmbedding,
   Job,
@@ -39,7 +41,7 @@ export type ServicePatch = { enabled?: boolean; values?: Record<string, string> 
  */
 export interface Backend {
   /** An opaque token that changes whenever the library does; compare it for inequality only. */
-  revision(): Promise<{ revision: string }>;
+  revision(): Promise<{ revision: string; library?: string }>;
   bootstrap(): Promise<{ stats: Stats; folders: Folder[]; tags: TagCount[] }>;
   items(params: Record<string, string>): Promise<{
     items: Item[];
@@ -75,6 +77,9 @@ export interface Backend {
   reprocessEmbeddings(): Promise<EmbeddingStatus>;
   itemEmbedding(id: string): Promise<ItemEmbedding>;
   storageUsage(): Promise<StorageUsage>;
+  dataLocation(): Promise<DataLocation>;
+  browseFolders(path?: string): Promise<FolderListing>;
+  moveDataLocation(body: { path: string; mode: 'copy' | 'open'; replace?: boolean }): Promise<DataLocation>;
   thumbnailSettings(): Promise<ThumbnailSettings>;
   updateThumbnails(body: { jxl?: boolean; previews?: boolean }): Promise<ThumbnailSettings>;
   reprocessItemEmbedding(id: string): Promise<ItemEmbedding>;

@@ -215,6 +215,24 @@ export function createOpenApi({ authRequired = false } = {}) {
       '/api/embeddings/status': { get: operation('embeddingStatus', 'Settings', 'Read semantic indexing progress', ref('EmbeddingStatus')) },
       '/api/embeddings/reprocess': { post: operation('reprocessEmbeddings', 'Settings', 'Rebuild all semantic search embeddings', ref('EmbeddingStatus')) },
       '/api/settings/storage': { get: operation('storageUsage', 'Settings', 'Read the disk space the library uses, by kind', ref('StorageUsage')) },
+      '/api/settings/data-location': {
+        get: operation('dataLocation', 'Settings', 'Read where the library is stored, and the progress of a move', ref('DataLocation')),
+        post: operation('moveDataLocation', 'Settings', 'Move the library to another folder, or open the one in it', ref('DataLocation'), {
+          status: 202,
+          description: 'copy copies the database, files and thumbnails into the folder, then the server restarts its library there. ' +
+            'open switches to the library already in the folder. The current folder is left untouched either way. Poll GET until move is null.',
+          requestBody: body('DataLocationMove'),
+          responses: {
+            202: response('Move started.', ref('DataLocation')),
+            400: error('Not an absolute folder path, not writable, or no library to open.'),
+            409: error('A move is already running, or the folder already holds a library and replace was not set.'),
+          },
+        }),
+      },
+      '/api/settings/data-location/browse': { get: operation('browseFolders', 'Settings', 'List the folders in a folder on the server', ref('FolderListing'), {
+        parameters: [query('path', string, 'Absolute folder path; defaults to the library folder.')],
+        responses: { 400: error('The folder cannot be opened.') },
+      }) },
       '/api/settings/thumbnails': {
         get: operation('thumbnailSettings', 'Settings', 'Read thumbnail settings and JPEG XL conversion progress', ref('ThumbnailSettings')),
         patch: operation('updateThumbnails', 'Settings', 'Turn progressive JPEG XL thumbnails or previews on or off', ref('ThumbnailSettings'), {
