@@ -4,9 +4,11 @@ import type {
   Appearance,
   AppearanceChoice,
   CreatedApiKey,
+  DataLocation,
   EmbeddingStatus,
   Folder,
   FolderBoard,
+  FolderListing,
   Item,
   ItemEmbedding,
   Job,
@@ -33,7 +35,7 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
 
 /** The Abacus server's HTTP API. */
 export const httpBackend: Backend = {
-  revision: () => request<{ revision: string }>('GET', '/api/revision'),
+  revision: () => request<{ revision: string; library?: string }>('GET', '/api/revision'),
   bootstrap: () => request<{ stats: Stats; folders: Folder[]; tags: TagCount[] }>('GET', '/api/bootstrap'),
   items: (params: Record<string, string>) =>
     request<{ items: Item[]; total: number; offset: number; ranking?: 'similarity'; scores?: Record<string, SearchScore> }>(
@@ -82,6 +84,11 @@ export const httpBackend: Backend = {
   itemEmbedding: (id: string) => request<ItemEmbedding>('GET', `/api/items/${id}/embedding`),
   reprocessItemEmbedding: (id: string) => request<ItemEmbedding>('POST', `/api/items/${id}/embedding`),
   storageUsage: () => request<StorageUsage>('GET', '/api/settings/storage'),
+  dataLocation: () => request<DataLocation>('GET', '/api/settings/data-location'),
+  browseFolders: (path?: string) =>
+    request<FolderListing>('GET', '/api/settings/data-location/browse' + (path ? '?' + new URLSearchParams({ path }) : '')),
+  moveDataLocation: (body: { path: string; mode: 'copy' | 'open'; replace?: boolean }) =>
+    request<DataLocation>('POST', '/api/settings/data-location', body),
   thumbnailSettings: () => request<ThumbnailSettings>('GET', '/api/settings/thumbnails'),
   updateThumbnails: (body: { jxl?: boolean; previews?: boolean }) => request<ThumbnailSettings>('PATCH', '/api/settings/thumbnails', body),
   job: (id: string) => request<Job>('GET', `/api/jobs/${id}`),

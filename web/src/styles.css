@@ -3992,6 +3992,75 @@ picture {
   border: 1px solid var(--border);
   background: var(--panel-2);
 }
+.data-location {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.data-location-current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 8px);
+}
+.data-location-current code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  user-select: all;
+}
+.folder-browser {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.folder-places {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.folder-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 8px);
+}
+.folder-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  text-align: left;
+  font-size: 13px;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.folder-entry + .folder-entry {
+  border-top: 1px solid var(--border);
+}
+.folder-entry:hover {
+  background: var(--hover);
+}
+.folder-entry span:first-of-type {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.folder-empty {
+  padding: 10px;
+  font-size: 13px;
+}
 .storage-row {
   display: grid;
   grid-template-columns: auto 1fr auto 44px;

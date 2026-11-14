@@ -1,9 +1,24 @@
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { paths } from './config.js';
+import { config, paths } from './config.js';
+import { DATA_UNAVAILABLE, samePath } from './location.js';
 import { probeMp4 } from './media.js';
 
 export const db = new DatabaseSync(paths.db);
+
+// A library outside DATA_DIR may be on a network share or in a synced folder. WAL's shared-memory index doesn't
+// work across machines, and two servers on one library would corrupt it, so there the database is held exclusively:
+// no -shm file, and a second server is told the library is locked instead of sharing it.
+if (!samePath(config.dataDir, config.homeDir)) {
+  try {
+    db.exec('PRAGMA busy_timeout = 5000; PRAGMA locking_mode = EXCLUSIVE; PRAGMA journal_mode = WAL;');
+  } catch (err) {
+    if (err.errcode !== 5) throw err;
+    throw Object.assign(new Error(`The library in ${config.dataDir} is in use by another Abacus server`), {
+      code: DATA_UNAVAILABLE,
+    });
+  }
+}
 
 db.exec(`
   PRAGMA journal_mode = WAL;

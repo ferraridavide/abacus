@@ -162,6 +162,25 @@ export interface StorageUsage {
   disk: { size: number; free: number } | null;
 }
 
+export interface DataLocation {
+  /** the folder holding the database, files and thumbnails */
+  path: string;
+  /** DATA_DIR, the default */
+  home: string;
+  isHome: boolean;
+  lastError: string | null;
+  move: { path: string; mode: 'copy' | 'open'; state: 'copying' | 'switching' | 'failed'; total: number; done: number; error: string | null } | null;
+}
+
+export interface FolderListing {
+  path: string;
+  parent: string | null;
+  /** whether this folder holds a library */
+  library: boolean;
+  folders: { name: string; path: string; library: boolean }[];
+  places: { label: string; path: string }[];
+}
+
 export interface ThumbnailSettings {
   /** progressive JPEG XL thumbnails, next to the webp ones */
   jxl: boolean;

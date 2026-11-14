@@ -502,6 +502,10 @@ export async function createDemoBackend() {
     // links are fetched and read by the server
     startImport: () => unavailable('Importing links'),
     importArena: () => unavailable('Importing Are.na exports'),
+    // the library is in this browser, not in a folder
+    dataLocation: () => unavailable('Choosing the library folder'),
+    browseFolders: () => unavailable('Choosing the library folder'),
+    moveDataLocation: () => unavailable('Choosing the library folder'),
     job: () => Promise.reject(new Error('Not found')),
     // no providers: the import dialog just lists the built-in sources
     importSources: async () => ({ providers: [] }),

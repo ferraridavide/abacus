@@ -4,6 +4,7 @@ import { api } from '../api';
 import type { StorageUsage } from '../types';
 import { formatBytes } from '../lib/format';
 import { cls } from './ui';
+import { DataLocationSettings } from './DataLocationSettings';
 
 type Part = 'db' | 'files' | 'webp' | 'jxl' | 'preview';
 
@@ -65,6 +66,7 @@ export function StorageSettings() {
 
   return (
     <div className="semantic">
+      {import.meta.env.VITE_DEMO !== 'true' && <DataLocationSettings />}
       <div className="semantic-status storage">
         <div className="semantic-status-head">
           <div className="semantic-count">

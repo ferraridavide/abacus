@@ -671,6 +671,7 @@ export function startLiveSync(): () => void {
   // the demo library lives in this tab, so nothing can change behind its back
   if (import.meta.env.MODE === 'demo' || import.meta.env.VITE_DEMO === 'true') return () => {};
   let baseline: string | null = null;
+  let library: string | undefined;
   let busy = false;
   let stopped = false;
 
@@ -678,10 +679,22 @@ export function startLiveSync(): () => void {
     if (busy || stopped) return;
     busy = true;
     try {
-      const { revision } = await api.revision();
+      const next = await api.revision();
+      const { revision } = next;
       if (stopped) return;
       if (baseline === null) {
         baseline = revision;
+        library = next.library;
+        return;
+      }
+      if (next.library !== library) {
+        // another library entirely: nothing on screen belongs to it any more
+        library = next.library;
+        baseline = revision;
+        useStore.getState().set({ viewerId: null, board: null, boardItems: [], contextMenu: null, folderPicker: null });
+        useStore.getState().setView({ kind: 'all' });
+        await useStore.getState().refreshMeta();
+        useStore.getState().toast(`Library switched to ${library}`, 'success');
         return;
       }
       if (revision === baseline) return;

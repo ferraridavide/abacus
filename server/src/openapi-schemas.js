@@ -96,7 +96,10 @@ export const schemas = {
     ],
     description: 'API keys receive only folders (id, name, parentId). The web login also receives statistics, full folders, and tag counts.',
   },
-  Revision: object({ revision: { ...string, example: 'lx3k9a2f.12', description: 'Opaque change token; compare for inequality only.' } }, ['revision']),
+  Revision: object({
+    revision: { ...string, example: 'lx3k9a2f.12', description: 'Opaque change token; compare for inequality only.' },
+    library: { ...string, description: 'The folder the library is in; it changes when the library is moved.' },
+  }, ['revision']),
   Autocomplete: object({ folders: array(ref('FolderTreeEntry')), tags: strings }, ['folders', 'tags']),
   AddRequest: object({
     ...addFields,
@@ -215,6 +218,30 @@ export const schemas = {
       disk: { ...object({ size: integer, free: integer }), nullable: true, description: 'The disk holding the data directory, in bytes.' },
     }, ['total', 'db', 'files', 'webp', 'jxl', 'preview', 'disk']);
   })(),
+  DataLocation: object({
+    path: { ...string, description: 'The folder holding library.db, files and thumbs.' },
+    home: { ...string, description: 'DATA_DIR, where data-location.json points elsewhere.' },
+    isHome: boolean,
+    lastError: { ...nullableString, description: 'Why the last move could not be finished.' },
+    move: {
+      ...object({
+        path: string, mode: { type: 'string', enum: ['copy', 'open'] },
+        state: { type: 'string', enum: ['copying', 'switching', 'failed'] },
+        total: integer, done: integer, error: nullableString,
+      }),
+      nullable: true,
+    },
+  }, ['path', 'home', 'isHome', 'lastError', 'move']),
+  DataLocationMove: object({
+    path: { ...string, description: 'Absolute folder path; created if missing.' },
+    mode: { type: 'string', enum: ['copy', 'open'] },
+    replace: { ...boolean, default: false, description: 'With copy, overwrite a library already in the folder.' },
+  }, ['path', 'mode']),
+  FolderListing: object({
+    path: string, parent: nullableString, library: boolean,
+    folders: array(object({ name: string, path: string, library: boolean }, ['name', 'path', 'library'])),
+    places: array(object({ label: string, path: string }, ['label', 'path'])),
+  }, ['path', 'parent', 'library', 'folders', 'places']),
   ItemEmbedding: object({
     state: { type: 'string', enum: ['off', 'pending', 'done', 'failed'] }, model: string,
     parts: array(object({

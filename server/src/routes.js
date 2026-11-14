@@ -8,6 +8,8 @@ import { getRevision } from './revision.js';
 import { getAppearance, updateAppearance } from './appearance.js';
 import { thumbnailSettings, updateThumbnails } from './thumbnails.js';
 import { storageUsage } from './storage.js';
+import { browseFolders, dataLocation, startMove } from './data-location.js';
+import { config } from './config.js';
 
 const notFound = (reply) => reply.code(404).send({ error: 'Not found' });
 
@@ -46,7 +48,8 @@ export async function routes(app) {
   // Changes whenever the library does, so the web app can refresh itself after an outside add (web login only).
   app.get('/api/revision', async (req, reply) => {
     reply.header('cache-control', 'no-store');
-    return { revision: getRevision() };
+    // the folder too: when the library moves, clients start over instead of keeping items from the old one
+    return { revision: getRevision(), library: config.dataDir };
   });
 
   // ---------- items ----------
@@ -188,6 +191,14 @@ export async function routes(app) {
 
   // ---------- settings (storage usage) ----------
   app.get('/api/settings/storage', async () => storageUsage());
+
+  // ---------- settings (library folder) ----------
+  app.get('/api/settings/data-location', async (req, reply) => {
+    reply.header('cache-control', 'no-store');
+    return dataLocation();
+  });
+  app.get('/api/settings/data-location/browse', async (req) => browseFolders(req.query?.path));
+  app.post('/api/settings/data-location', async (req, reply) => reply.code(202).send(await startMove(req.body || {})));
 
   // ---------- bookmarklet landing page ----------
   app.get('/quick-add', async (req, reply) => {
