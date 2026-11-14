@@ -42,3 +42,8 @@ label:has([aria-invalid="true"]) > span { color: var(--danger); }
 .tool-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .tool-grid .btn { padding: 0 6px; font-size: 12px; }
 .btn.wide { width: 100%; }
+.tool-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }
+.tool-row .btn { font-size: 12px; }
+.tool-hint { margin: 0 0 4px; font-size: 11px; color: var(--text-dim); }
+.tool-hint button { all: unset; cursor: pointer; color: var(--accent-text); text-decoration: underline; }
+.tools h2 + .tool-grid, .tool-hint + h2 { margin-top: 2px; }

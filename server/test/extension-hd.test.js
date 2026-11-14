@@ -54,6 +54,21 @@ describe('high-resolution image candidates', () => {
     assert.deepEqual(hd.upgradeUrl('https://example.com/plain.jpg'), []);
   });
 
+  test('a MediaWiki file page named like the image is not taken for the file', () => {
+    const list = hd.candidates({
+      src: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/25/Cat.jpg/250px-Cat.jpg',
+      link: 'https://en.wikipedia.org/wiki/File:Cat.jpg',
+    });
+    assert.deepEqual(list, [
+      'https://upload.wikimedia.org/wikipedia/commons/2/25/Cat.jpg',
+      'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/25/Cat.jpg/250px-Cat.jpg',
+    ]);
+    assert.equal(
+      hd.upgradeUrl('https://thumb.wikimedia.org/wikipedia/en/thumb/a/ab/Cat.png/330px-Cat.png?utm_source=x')[0],
+      'https://upload.wikimedia.org/wikipedia/en/a/ab/Cat.png'
+    );
+  });
+
   test('turning high resolution off keeps only the displayed image', () => {
     const list = hd.candidates({ src: 'https://pbs.twimg.com/media/AbC?name=small', link: '/big.jpg', base }, { hd: false });
     assert.deepEqual(list, ['https://pbs.twimg.com/media/AbC?name=small']);

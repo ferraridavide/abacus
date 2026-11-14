@@ -56,8 +56,11 @@ reinstalling.
 ### Page tools
 
 - **Drag to save**: start dragging any image and a dock of your folders (the default one first, then the recent
-  ones) appears at the bottom of the page. Drop the image on a folder to save it there. Dragging somewhere
-  else, into a text editor for example, behaves as usual because the drag is never changed.
+  ones) appears at the bottom of the page. Drop the image on a folder to save it there. It also works for images
+  covered by an overlay, images a site hides from the mouse, images inside an embedded frame, and images dragged
+  from another tab. A link is saved as a link. Dragging somewhere else, into a text editor for example, behaves as
+  usual because the drag is never changed. Hold **Alt** while dragging to save an image a site blocks from being
+  dragged.
 - **Alt + right-click**: saves the image under the pointer, including images covered by an overlay and pages that
   block the context menu. A small toast confirms it.
 - **High resolution**: the extension tries the full-size file first and the displayed image as a fallback. It
@@ -67,12 +70,15 @@ reinstalling.
   An image is stored with the page it came from as its source link.
 - **Screenshots** (popup, right-click *Screenshot to Abacus*, or keyboard): *Area* (drag a rectangle), *Element*
   (click it; ↑ and ↓ pick its parent or child), *Full page* (scrolled strips stitched together, fixed headers shown
-  once), and *Visible*. Esc cancels. Very tall pages are scaled down to stay inside the browser's canvas limits.
+  once), and *Visible*. Esc, a right-click, or the Cancel button cancels, so it also works when the page doesn't
+  have keyboard focus. Very tall pages are scaled down to stay inside the browser's canvas limits.
+- **Pick images** (popup, right-click, or keyboard): click images on the page to save their full-size files, one
+  after another, including images covered by an overlay. Esc, right-click, or Done ends it.
 - **Save all images on this page** (popup or right-click): opens a page with every image and video found. Filter by
   minimum size and format, untick what you don't want, choose a folder and tags, and save them in one go. Small
   images (under 200 × 200) start filtered out; images already in your library are skipped.
 
-Keyboard shortcuts for the screenshots and *Save all images* are listed in `chrome://extensions/shortcuts`, with
+Keyboard shortcuts for the screenshots, *Pick images*, and *Save all images* are listed in `chrome://extensions/shortcuts`, with
 the same on/off switch as the page shortcut. No key combination is assigned by default.
 
 Imports are followed until they finish, even long video downloads, and a notification shows the result or the

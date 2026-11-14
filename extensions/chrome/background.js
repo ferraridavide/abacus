@@ -11,6 +11,7 @@ const MENUS = [
   { id: 'abacus-image', title: 'Save image to Abacus', contexts: ['image'] },
   { id: 'abacus-selection', title: 'Save selection to Abacus', contexts: ['selection'] },
   { id: 'abacus-batch', title: 'Save all images on this page…', contexts: ['page', 'frame'] },
+  { id: 'abacus-pick', title: 'Pick images to save…', contexts: ['page', 'frame', 'image', 'link'] },
   { id: 'abacus-shot', title: 'Screenshot to Abacus', contexts: ['page', 'frame'] },
   { id: 'abacus-shot-area', parentId: 'abacus-shot', title: 'Capture area', contexts: ['page', 'frame'] },
   { id: 'abacus-shot-element', parentId: 'abacus-shot', title: 'Capture element', contexts: ['page', 'frame'] },
@@ -23,7 +24,8 @@ const SHOT_MODES = {
   'abacus-shot-full': 'full',
   'abacus-shot-visible': 'visible',
 };
-const COMMAND_SHOTS = { 'screenshot-area': 'area', 'screenshot-element': 'element', 'screenshot-full': 'full' };
+const COMMAND_SHOTS = { 'screenshot-area': 'area', 'screenshot-element': 'element', 'screenshot-full': 'full', 'pick-images': 'images' };
+const PAGE_SCRIPTS = ['theme-boot.js', 'hd.js', 'content.js'];
 
 const isHttp = (url) => /^https?:\/\//i.test(url || '');
 const unique = (list) => [...new Set(list.filter(Boolean))];
@@ -63,17 +65,19 @@ function syncContentScripts({ refresh = false } = {}) {
       existing = [];
     }
     if (!granted || existing.length) return;
+    // document_start: the page's own window listeners must not get to a drag or a mousedown before ours
     await chrome.scripting.registerContentScripts([{
       id: CONTENT_ID,
       matches: ALL_SITES,
-      js: ['theme-boot.js', 'hd.js', 'content.js'],
-      runAt: 'document_idle',
+      js: PAGE_SCRIPTS,
+      runAt: 'document_start',
       allFrames: true,
       persistAcrossSessions: true,
     }]);
+    // Open pages get it now; a copy left from before a reload replaces itself.
     const tabs = await chrome.tabs.query({ url: ALL_SITES });
     await Promise.all(tabs.map((tab) => chrome.scripting
-      .executeScript({ target: { tabId: tab.id, allFrames: true }, files: ['theme-boot.js', 'hd.js', 'content.js'] })
+      .executeScript({ target: { tabId: tab.id, allFrames: true }, files: PAGE_SCRIPTS })
       .catch(() => {})));
   });
   return scriptSync;
@@ -93,6 +97,7 @@ chrome.runtime.onStartup.addListener(() => {
   imports.resume().catch((err) => fail(err.message));
 });
 chrome.permissions?.onRemoved?.addListener(() => syncContentScripts().catch(() => {}));
+chrome.permissions?.onAdded?.addListener(() => syncContentScripts().catch(() => {}));
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local' || !changes.config) return;
@@ -180,7 +185,12 @@ async function saveFromPage(media, folder) {
     const tags = parseTagList(config.tags);
     const target = folder || config.folder;
     let data;
-    if (!media.candidates?.length && media.inline) {
+    if (media.kind === 'link') {
+      // a dragged link is saved as itself; the page it was dragged from is not its source
+      const url = media.candidates?.find(isHttp);
+      if (!url) throw new Error('Only http(s) links can be saved.');
+      data = await submitToAbacus({ url, folder: target, tags }, config);
+    } else if (!media.candidates?.length && media.inline) {
       const blob = await (await fetch(media.inline)).blob();
       data = await uploadToAbacus(
         blob,
@@ -273,12 +283,14 @@ async function pageCall(tabId, name, ...args) {
   });
 }
 
+/** Screenshots ('area', 'element', 'full', 'visible') and the image picker ('images'). */
 async function startScreenshot(tab, mode) {
   try {
-    if (!isHttp(tab?.url)) return await fail('This page cannot be captured.');
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['theme-boot.js', 'capture.js'] });
-    if (mode === 'area' || mode === 'element') {
-      // The result arrives as a 'screenshot-result' message once the user has chosen.
+    if (!isHttp(tab?.url)) return await fail(mode === 'images' ? 'Images cannot be picked on this page.' : 'This page cannot be captured.');
+    if (mode === 'images' && !(await getConfig()).serverUrl) return await fail('Set your Abacus server in the extension options first.');
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['theme-boot.js', 'hd.js', 'capture.js'] });
+    if (mode === 'area' || mode === 'element' || mode === 'images') {
+      // Area and element answer with a 'screenshot-result' message once the user has chosen; images save themselves.
       await pageCall(tab.id, 'pick', mode);
       return null;
     }
@@ -407,6 +419,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!(await getConfig()).contextMenuEnabled) return;
   if (SHOT_MODES[info.menuItemId]) return startScreenshot(tab, SHOT_MODES[info.menuItemId]);
   if (info.menuItemId === 'abacus-batch') return openBatch(tab);
+  if (info.menuItemId === 'abacus-pick') return startScreenshot(tab, 'images');
   if (info.menuItemId === 'abacus-image') {
     if (!info.srcUrl) return fail('This image has no address to save.');
     if (!isHttp(info.srcUrl) && !/^(?:blob|data):/i.test(info.srcUrl)) return fail('Only http(s) images can be saved.');

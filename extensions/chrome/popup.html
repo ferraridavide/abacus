@@ -56,6 +56,12 @@
         <button id="save" class="btn primary" type="submit" aria-live="polite" disabled>Save to Abacus</button>
       </form>
       <section id="tools" class="tools" aria-label="Page tools" hidden>
+        <h2>Save images</h2>
+        <div class="tool-row">
+          <button id="pick" type="button" class="btn" title="Click images on the page to save them, one after another">Pick images</button>
+          <button id="batch" type="button" class="btn" title="Choose from every image on this page">All images…</button>
+        </div>
+        <p id="drag-hint" class="tool-hint" hidden></p>
         <h2>Capture this page</h2>
         <div class="tool-grid">
           <button type="button" class="btn" data-shot="area" title="Drag to choose an area">Area</button>
@@ -63,7 +69,6 @@
           <button type="button" class="btn" data-shot="full" title="The whole page, top to bottom">Full page</button>
           <button type="button" class="btn" data-shot="visible" title="What you see now">Visible</button>
         </div>
-        <button id="batch" type="button" class="btn wide">Save all images on this page…</button>
       </section>
     </main>
     <script type="module" src="popup.js"></script>

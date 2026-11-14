@@ -4,8 +4,8 @@ import { setImmediate } from 'node:timers/promises';
 import { readFile } from 'node:fs/promises';
 import { getConfig, setConfig } from '../../extensions/chrome/lib.js';
 
-// Save, link, image, selection, batch, and the screenshot parent with its four modes.
-const MENU_COUNT = 10;
+// Save, link, image, selection, batch, pick images, and the screenshot parent with its four modes.
+const MENU_COUNT = 11;
 
 test('context menus and shortcuts are opt-in and retain preferences across startup', async (t) => {
   const previous = { chrome: globalThis.chrome, fetch: globalThis.fetch };

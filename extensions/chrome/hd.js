@@ -30,6 +30,8 @@
   };
   const looksLikeImage = (value) => IMAGE_EXT.test(pathnameOf(value));
   const looksLikeVideo = (value) => VIDEO_EXT.test(pathnameOf(value));
+  // MediaWiki links thumbnails to a description page named like the file (/wiki/File:Cat.jpg): not the image.
+  const isWikiPage = (value) => /\/wiki\/|[?&]title=/i.test(value || '');
 
   function absolute(value, base) {
     const raw = String(value || '').trim();
@@ -106,10 +108,10 @@
     },
     // Pinterest: /236x/, /474x/, /564x/, /736x/ -> /originals/
     (url) => (/^https?:\/\/i\.pinimg\.com\//i.test(url) ? url.replace(/\/(?:\d+x(?:\d+)?|\d+x\d+_RS)\//, '/originals/') : null),
-    // Wikimedia: /thumb/a/ab/File.jpg/300px-File.jpg -> /a/ab/File.jpg
+    // Wikimedia: (upload|thumb).wikimedia.org/wikipedia/x/thumb/a/ab/File.jpg/300px-File.jpg -> upload…/x/a/ab/File.jpg
     (url) => {
-      const match = /^(https?:\/\/upload\.wikimedia\.org\/wikipedia\/[^/]+)\/thumb\/(.+?)\/[^/]+$/i.exec(url);
-      return match ? `${match[1]}/${match[2]}` : null;
+      const match = /^https?:\/\/(?:upload|thumb)\.wikimedia\.org(\/wikipedia\/[^/]+)\/thumb\/(.+?)\/[^/?]+(?:\?.*)?$/i.exec(url);
+      return match ? `https://upload.wikimedia.org${match[1]}/${match[2]}` : null;
     },
     // Unsplash (imgix): drop the sizing parameters to get the original
     (url) => {
@@ -165,7 +167,7 @@
     const attrs = info.attrs || {};
     const full = FULL_SIZE_ATTRS.map((name) => absolute(attrs[name], base)).filter(isHttp);
     const link = absolute(info.link, base);
-    const linked = isHttp(link) && looksLikeImage(link) ? [link] : [];
+    const linked = isHttp(link) && looksLikeImage(link) && !isWikiPage(link) ? [link] : [];
     const sizes = [info.srcset, ...(info.sources || []).map((source) => source.srcset)]
       .map((value) => largestSource(value, base))
       .filter(isHttp);
@@ -240,6 +242,46 @@
     return null;
   }
 
+  const usable = (media) => (media && (media.candidates.length || media.inline) ? media : null);
+  const within = (rect, x, y) => rect.width > 0 && rect.height > 0 && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+
+  /**
+   * The image or video drawn at a point: { element, media }, or null. Looks through overlays and transparent layers
+   * above it, and finds images that sites hide from hit-testing with pointer-events: none. `ignore(element)` skips
+   * the extension's own overlays.
+   */
+  function mediaAt(doc, x, y, { hd = true, ignore = () => false } = {}) {
+    const stack = doc.elementsFromPoint(x, y).filter((element) => !ignore(element));
+    for (const element of stack) {
+      if (element === doc.documentElement || element === doc.body) continue;
+      const media = usable(describe(element, { hd }));
+      if (media) return { element, media };
+    }
+    let scope = stack[0];
+    for (let depth = 0; scope && scope !== doc.body && scope !== doc.documentElement && depth < 6; depth++) {
+      const hits = [...scope.querySelectorAll('img, video')].slice(0, 400).filter((e) => !ignore(e) && within(e.getBoundingClientRect(), x, y));
+      // the last one in document order is painted on top
+      for (const element of hits.reverse()) {
+        const media = usable(describe(element, { hd }));
+        if (media) return { element, media };
+      }
+      scope = scope.parentElement;
+    }
+    return null;
+  }
+
+  /** Read a blob:/data: URL the page made into a data: URL, which survives being sent to the service worker. */
+  async function inlineToDataUrl(inline, maxBytes = 25 * 1024 * 1024) {
+    const blob = await (await fetch(inline)).blob();
+    if (blob.size > maxBytes) throw new Error('That image is too large to save from the page.');
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  }
+
   const formatOf = (url) => {
     const ext = /\.([a-z0-9]{2,5})$/i.exec(pathnameOf(url))?.[1]?.toLowerCase();
     if (!ext) return 'other';
@@ -286,5 +328,8 @@
     return [...found.values()];
   }
 
-  globalThis.__abacusHd = { scan, formatOf, parseSrcset, largestSource, upgradeUrl, candidates, describe, looksLikeImage, looksLikeVideo, isHttp };
+  globalThis.__abacusHd = {
+    scan, formatOf, parseSrcset, largestSource, upgradeUrl, candidates, describe, mediaAt, inlineToDataUrl,
+    looksLikeImage, looksLikeVideo, isHttp,
+  };
 })();
