@@ -13,7 +13,7 @@ const PARTS: { key: Part; label: string; unit?: string; group?: 'thumbs' }[] = [
   { key: 'db', label: 'Database' },
   { key: 'webp', label: 'WebP thumbnails', unit: 'file', group: 'thumbs' },
   { key: 'jxl', label: 'JPEG XL thumbnails', unit: 'file', group: 'thumbs' },
-  { key: 'preview', label: 'JPEG XL full-screen previews', unit: 'file', group: 'thumbs' },
+  { key: 'preview', label: 'Full-screen previews', unit: 'file', group: 'thumbs' },
 ];
 
 const share = (bytes: number, total: number) => (total ? (bytes / total) * 100 : 0);

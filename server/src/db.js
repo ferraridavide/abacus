@@ -177,6 +177,11 @@ if (db.prepare('PRAGMA user_version').get().user_version < 5) {
   db.exec('COMMIT');
 }
 
+// A browser-safe full-screen copy of an original browsers can't show (HEIC), made at import. NULL means not made
+// yet, '' means it couldn't be decoded. See library.js.
+if (!db.prepare("SELECT 1 FROM pragma_table_info('items') WHERE name = 'preview'").get()) {
+  db.exec('ALTER TABLE items ADD COLUMN preview TEXT');
+}
 // Optional progressive JPEG XL thumbnail, next to the webp one (which stays: embeddings and colours read it, and
 // browsers without JPEG XL show it). NULL means not made yet, '' means it couldn't be made. See thumbnails.js.
 if (!db.prepare("SELECT 1 FROM pragma_table_info('items') WHERE name = 'thumb_jxl'").get()) {
@@ -186,6 +191,12 @@ if (!db.prepare("SELECT 1 FROM pragma_table_info('items') WHERE name = 'thumb_jx
 // or an original no bigger than the thumbnail.
 if (!db.prepare("SELECT 1 FROM pragma_table_info('items') WHERE name = 'preview_jxl'").get()) {
   db.exec('ALTER TABLE items ADD COLUMN preview_jxl TEXT');
+}
+
+// A folder's board: where every image sits on its canvas, how it was last arranged, and the camera it was
+// looking through. JSON, normalized on the way in and out by board.js; NULL until someone arranges the folder.
+if (!db.prepare("SELECT 1 FROM pragma_table_info('folders') WHERE name = 'board'").get()) {
+  db.exec('ALTER TABLE folders ADD COLUMN board TEXT');
 }
 
 export function tx(fn) {

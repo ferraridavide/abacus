@@ -69,9 +69,11 @@ export default function App() {
       if (mod && e.key === 'a') {
         e.preventDefault();
         s.selectAll();
-      } else if (!mod && e.key.toLowerCase() === 'b' && s.selected.size > 1) {
+      } else if (!mod && e.key.toLowerCase() === 'b' && (s.selected.size > 1 || s.view.kind === 'folder')) {
         e.preventDefault();
-        s.openBoard();
+        // picking images opens a board of those; with nothing picked, a folder opens the board it keeps
+        if (s.selected.size > 1) s.openBoard();
+        else if (s.view.kind === 'folder') s.openFolderBoard(s.view.id);
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         s.trashSelected();

@@ -11,10 +11,15 @@ import { Thumb, useJxlSupport } from './Thumb';
 
 export function Viewer() {
   const viewerId = useStore((s) => s.viewerId);
-  const items = useStore((s) => s.items);
+  const gridItems = useStore((s) => s.items);
+  const board = useStore((s) => s.board);
+  const boardItems = useStore((s) => s.boardItems);
   const set = useStore((s) => s.set);
   const compact = useCompact();
   const swipe = useRef<{ x: number; y: number } | null>(null);
+  // a folder's board can show images that aren't on the loaded page of the grid: preview those, not the page
+  const onBoard = Boolean(board?.folderId && boardItems.length);
+  const items = onBoard ? boardItems : gridItems;
   const index = items.findIndex((i) => i.id === viewerId);
   const item = index >= 0 ? items[index] : null;
 
@@ -24,7 +29,8 @@ export function Viewer() {
       if ((e.target as HTMLElement)?.closest('input, textarea, select, [contenteditable]')) return;
       const s = useStore.getState();
       if (s.details || s.settingsOpen || s.importOpen || s.confirm || s.folderPicker) return;
-      const idx = s.items.findIndex((i) => i.id === s.viewerId);
+      const list = s.board?.folderId && s.boardItems.length ? s.boardItems : s.items;
+      const idx = list.findIndex((i) => i.id === s.viewerId);
       if (e.key === ' ' && (e.target as HTMLElement)?.closest('button, a')) return;
       if (e.key === 'Escape' || e.key === ' ') {
         e.preventDefault();
@@ -33,12 +39,12 @@ export function Viewer() {
       } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault();
         e.stopImmediatePropagation();
-        const next = s.items[Math.min(s.items.length - 1, idx + 1)];
+        const next = list[Math.min(list.length - 1, idx + 1)];
         if (next) s.set({ viewerId: next.id, selected: new Set([next.id]), anchor: next.id });
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         e.preventDefault();
         e.stopImmediatePropagation();
-        const prev = s.items[Math.max(0, idx - 1)];
+        const prev = list[Math.max(0, idx - 1)];
         if (prev) s.set({ viewerId: prev.id, selected: new Set([prev.id]), anchor: prev.id });
       }
     };
@@ -47,8 +53,8 @@ export function Viewer() {
   }, [viewerId]);
 
   useEffect(() => {
-    if (index >= 0 && index >= items.length - 5) useStore.getState().loadMore();
-  }, [index, items.length]);
+    if (!onBoard && index >= 0 && index >= items.length - 5) useStore.getState().loadMore();
+  }, [index, items.length, onBoard]);
 
   if (!item) return null;
 

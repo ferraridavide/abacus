@@ -6,8 +6,62 @@ import { histogramFromRgb, encodeHistogram } from './color.js';
 sharp.cache(false);
 
 export const THUMB_WIDTH = 720;
-// long edge of the full-screen JPEG XL preview; never more than the original
+// long edge of a full-screen preview, JPEG XL or the JPEG made for HEIC; never more than the original
 const PREVIEW_SIZE = 2560;
+
+// HEIC/HEIF brands. sharp reads their dimensions but not their pixels: the prebuilt libvips has no HEVC decoder.
+const HEIC_BRANDS = new Set(['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'hevm', 'hevs', 'mif1', 'msf1']);
+
+export function isHeic(buffer) {
+  return (
+    buffer.length >= 12 &&
+    buffer.toString('latin1', 4, 8) === 'ftyp' &&
+    HEIC_BRANDS.has(buffer.toString('latin1', 8, 12))
+  );
+}
+
+let heicWorker = null;
+const heicPending = new Map();
+let heicNextId = 0;
+
+function heicDecoder() {
+  if (heicWorker) return heicWorker;
+  const worker = new Worker(new URL('./heic-worker.js', import.meta.url));
+  worker.on('message', ({ id, data, width, height, error }) => {
+    const job = heicPending.get(id);
+    heicPending.delete(id);
+    if (!heicPending.size) worker.unref();
+    if (error) job?.reject(new Error(error));
+    else job?.resolve({ data: Buffer.from(data.buffer, data.byteOffset, data.byteLength), width, height });
+  });
+  worker.on('error', (err) => {
+    for (const job of heicPending.values()) job.reject(err);
+    heicPending.clear();
+    heicWorker = null;
+  });
+  heicWorker = worker;
+  return worker;
+}
+
+/** RGBA pixels of a HEIC/HEIF image, decoded off the main thread. */
+async function decodeHeic(buffer) {
+  const worker = heicDecoder();
+  worker.ref();
+  const id = ++heicNextId;
+  return new Promise((resolve, reject) => {
+    heicPending.set(id, { resolve, reject });
+    worker.postMessage({ id, buffer });
+  });
+}
+
+/** A screen-sized JPEG of a HEIC original, for browsers that can't decode it. */
+export async function makeHeicPreview(buffer) {
+  const { data, width, height } = await decodeHeic(buffer);
+  return sharp(data, { raw: { width, height, channels: 4 }, limitInputPixels: false })
+    .resize({ width: PREVIEW_SIZE, height: PREVIEW_SIZE, fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 90 })
+    .toBuffer();
+}
 
 /**
  * Inspect an image buffer. Returns null if sharp cannot decode it.

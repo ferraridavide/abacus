@@ -434,7 +434,7 @@ function MultiInspector({ items, ids }: { items: Item[]; ids: string[] }) {
 
       <div className="insp-actions column">
         <button className="btn" onClick={() => openBoard(ids)}>
-          <Images size={14} /> Open moodboard
+          <Images size={14} /> Open board
         </button>
         <button className="btn" onClick={() => set({ folderPicker: { mode: 'add', ids } })}>
           <FolderPlus size={14} /> Add to folder…
@@ -488,6 +488,11 @@ function EmptyInspector() {
           }}
         />
         <div className="multi-sub">{count} items</div>
+        <div className="insp-actions column">
+          <button className="btn" onClick={() => useStore.getState().openFolderBoard(folder.id)}>
+            <Images size={14} /> Open board
+          </button>
+        </div>
         <Section title="Colour">
           <div className="color-dots">
             <button
@@ -543,7 +548,7 @@ function EmptyInspector() {
         </div>
         {[
           ['Space', 'Preview'],
-          ['B', 'Moodboard'],
+          ['B', 'Board'],
           ['⌘A', 'Select all'],
           ['⌫', 'Move to trash'],
           ['⌘V', 'Paste links or images'],

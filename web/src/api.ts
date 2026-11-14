@@ -6,6 +6,7 @@ import type {
   CreatedApiKey,
   EmbeddingStatus,
   Folder,
+  FolderBoard,
   Item,
   ItemEmbedding,
   Job,
@@ -52,6 +53,9 @@ export interface Backend {
   batch(body: { ids: string[]; action: BatchAction; tags?: string[]; folderId?: string; fromFolderId?: string }): Promise<{ ok: boolean }>;
   emptyTrash(): Promise<{ ok: boolean }>;
   createFolder(body: { name: string; parentId?: string | null; color?: string | null }): Promise<Folder>;
+  /** A folder's board: where every image sits, and the camera it was last looked at through. */
+  folderBoard(id: string): Promise<FolderBoard>;
+  saveFolderBoard(id: string, board: FolderBoard): Promise<FolderBoard>;
   updateFolder(id: string, patch: FolderPatch): Promise<Folder>;
   deleteFolder(id: string): Promise<{ ok: boolean }>;
   startImport(body: { text: string; folderId?: string; tags?: string[] }): Promise<Job>;

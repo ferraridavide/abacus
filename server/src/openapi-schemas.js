@@ -31,6 +31,10 @@ export const schemas = {
   Item: object({
     id: string, name: string, type: itemType, ext: nullableString, mime: nullableString,
     fileUrl: nullableString, thumbUrl: nullableString,
+    previewUrl: {
+      ...nullableString,
+      description: "Browser-safe full-screen image, made when the original is a format browsers can't show (HEIC).",
+    },
     thumbJxlUrl: { ...nullableString, description: 'Progressive JPEG XL thumbnail, while that setting is on and it has been made.' },
     previewJxlUrl: { ...nullableString, description: 'Screen-sized progressive JPEG XL preview of an image bigger than its thumbnail, while that setting is on.' },
     width: nullableNumber, height: nullableNumber, duration: nullableNumber, size: number,
@@ -64,6 +68,25 @@ export const schemas = {
   }, ['id', 'name', 'parentId', 'count']),
   FolderCreate: object(folderFields),
   FolderPatch: object({ ...folderFields, sort: number }),
+  BoardSpot: object({ x: number, y: number, w: number, h: number }, ['x', 'y', 'w', 'h']),
+  FolderBoard: {
+    type: 'object',
+    properties: {
+      mode: { type: 'string', enum: ['masonry', 'grid', 'free'], description: 'How the board arranges its images. Falls back to free.' },
+      view: {
+        ...object({ x: number, y: number, s: number }, ['x', 'y', 's']),
+        nullable: true,
+        description: 'The camera last used on the board; null until one is saved.',
+      },
+      spots: {
+        type: 'object',
+        additionalProperties: ref('BoardSpot'),
+        description: 'Where each image sits and how large it is, by item ID, in board coordinates.',
+      },
+      zOrder: { ...strings, description: 'Item IDs from back to front; images missing here sit at the back.' },
+    },
+    additionalProperties: false,
+  },
   TagCount: object({ name: string, count: integer }, ['name', 'count']),
   Stats: object({ all: integer, uncategorized: integer, untagged: integer, trash: integer, totalSize: number }),
   Bootstrap: {

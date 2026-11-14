@@ -9,7 +9,7 @@ import { config, paths } from './config.js';
 import { routes } from './routes.js';
 import { apiDocs } from './api-docs.js';
 import { kickEmbeddings } from './embeddings.js';
-import { backfillColorHistograms } from './library.js';
+import { backfillColorHistograms, backfillHeicPreviews } from './library.js';
 import { kickJxlThumbs } from './thumbnails.js';
 import { kickStorageWalk } from './storage.js';
 import { findApiKey, migrateEnvironmentApiToken, recordApiKeyUse } from './api-keys.js';
@@ -58,7 +58,7 @@ app.addHook('onRequest', async (req, reply) => {
     reply.header('access-control-allow-origin', origin || '*');
     reply.header('vary', 'origin');
     reply.header('access-control-allow-headers', 'authorization, content-type, x-api-key');
-    reply.header('access-control-allow-methods', 'GET, POST, PATCH, DELETE, OPTIONS');
+    reply.header('access-control-allow-methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     reply.header('access-control-max-age', '86400');
   }
   if (req.method === 'OPTIONS') return reply.code(204).send();
@@ -141,6 +141,9 @@ kickEmbeddings();
 
 // index real pixel colours for items imported before colour search existed
 backfillColorHistograms();
+
+// give HEIC images imported before the server could read their pixels a thumbnail and a browser-safe preview
+backfillHeicPreviews();
 
 // finish a JPEG XL thumbnail conversion the last run didn't get through
 kickJxlThumbs();

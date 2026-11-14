@@ -160,6 +160,17 @@ export function createOpenApi({ authRequired = false } = {}) {
         }),
         delete: byId('deleteFolder', 'Library', 'Delete a folder', ref('Ok')),
       },
+      '/api/folders/{id}/board': {
+        get: byId('getFolderBoard', 'Library', "Read a folder's saved board", ref('FolderBoard'), {
+          description: 'Every image in the folder keeps a place and a size, plus the camera last used and the stacking order. An empty board comes back until one is saved.',
+          responses: { 404: error('Folder not found.') },
+        }),
+        put: byId('saveFolderBoard', 'Library', "Save a folder's board", ref('FolderBoard'), {
+          description: 'Replaces the arrangement with the one sent. The body is normalized: an unknown mode falls back to free, and a spot without a place and a size is dropped.',
+          requestBody: body('FolderBoard'),
+          responses: { 404: error('Folder not found.') },
+        }),
+      },
       '/api/import/sources': { get: operation('importSources', 'Library', 'List enabled import providers and supported sites',
         object({ providers: array(ref('ActiveProvider')) })) },
       '/api/settings/api-keys': {

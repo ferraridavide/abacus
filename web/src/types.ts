@@ -18,6 +18,8 @@ export interface Item {
   thumbJxlUrl?: string | null;
   /** Screen-sized progressive JPEG XL preview of an image bigger than its thumbnail, under the same setting. */
   previewJxlUrl?: string | null;
+  /** Browser-safe full-screen image, made when the original is a format browsers can't show (HEIC). */
+  previewUrl?: string | null;
   width: number | null;
   height: number | null;
   duration: number | null;
@@ -72,6 +74,31 @@ export type View =
   | { kind: 'trash' }
   | { kind: 'folder'; id: string }
   | { kind: 'tag'; tag: string };
+
+/** How a board arranges its images: automatic waterfall, aligned grid, or free placement. */
+export type BoardMode = 'masonry' | 'grid' | 'free';
+
+/** Where an image sits on a free board and how large it is, in board coordinates. */
+export interface BoardSpot {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface BoardView {
+  x: number;
+  y: number;
+  s: number;
+}
+
+/** A folder's saved board: its arrangement of every image, and the camera last looking at it. */
+export interface FolderBoard {
+  mode: BoardMode;
+  view: BoardView | null;
+  spots: Record<string, BoardSpot>;
+  zOrder: string[];
+}
 
 export type SortKey = 'created' | 'posted' | 'name' | 'size' | 'dimensions' | 'rating' | 'random';
 export type AutoplayMode = 'never' | 'hover' | 'always';
@@ -129,7 +156,7 @@ export interface StorageUsage {
   files: { bytes: number; count: number };
   webp: { bytes: number; count: number };
   jxl: { bytes: number; count: number };
-  /** screen-sized JPEG XL previews */
+  /** screen-sized previews: JPEG XL ones, and JPEG ones for HEIC originals */
   preview: { bytes: number; count: number };
   /** the disk holding the library */
   disk: { size: number; free: number } | null;

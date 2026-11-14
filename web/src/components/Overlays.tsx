@@ -137,7 +137,7 @@ function ItemMenu() {
       {n > 1 && (
         <MI
           icon={<Images size={14} />}
-          label={`Open ${n} in moodboard`}
+          label={`Open ${n} in board`}
           hint="B"
           onClick={() => s.openBoard(ids)}
         />
@@ -171,6 +171,15 @@ function FolderMenu({ id }: { id: string }) {
   if (!folder) return null;
   return (
     <>
+      <MI
+        icon={<Images size={14} />}
+        label="Open board"
+        onClick={() => {
+          s.set({ contextMenu: null });
+          s.openFolderBoard(id);
+        }}
+      />
+      <div className="menu-sep" />
       <MI icon={<Plus size={14} />} label="New subfolder" onClick={() => s.createFolder(id)} />
       <MI icon={<Pencil size={14} />} label="Rename" onClick={() => s.set({ renamingFolderId: id })} />
       <div className="menu-colors">
@@ -200,13 +209,24 @@ function FolderMenu({ id }: { id: string }) {
 function GridMenu() {
   const selected = useStore((state) => state.selected);
   const s = useStore.getState();
+  const folderId = currentFolderId(s.view);
   return (
     <>
+      {folderId && (
+        <MI
+          icon={<Images size={14} />}
+          label="Open folder board"
+          onClick={() => {
+            s.set({ contextMenu: null });
+            s.openFolderBoard(folderId);
+          }}
+        />
+      )}
       {selected.size > 1 && (
         <>
           <MI
             icon={<Images size={14} />}
-            label={`Open ${selected.size} in moodboard`}
+            label={`Open ${selected.size} in board`}
             hint="B"
             onClick={() => s.openBoard()}
           />

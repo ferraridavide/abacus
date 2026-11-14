@@ -29,7 +29,7 @@ describe('OpenAPI specification', () => {
 
   test('every API route and method has documentation and a unique operation ID', async () => {
     const routes = await fs.readFile(new URL('../src/routes.js', import.meta.url), 'utf8');
-    const registered = [...routes.matchAll(/app\.(get|post|patch|delete)\('(\/api\/[^']+)'/g)]
+    const registered = [...routes.matchAll(/app\.(get|post|put|patch|delete)\('(\/api\/[^']+)'/g)]
       .map(([, method, path]) => `${method} ${path.replace(/:([\w]+)/g, '{$1}')}`).sort();
     const documented = Object.entries(spec.paths).flatMap(([path, methods]) =>
       Object.keys(methods).map((method) => `${method} ${path}`)).sort();
