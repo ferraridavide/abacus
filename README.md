@@ -114,6 +114,7 @@ Set these environment variables in `docker-compose.yml` or in your shell.
 | `AUTH_USER`          | `abacus` | User name for basic authentication.                      |
 | `IMPORT_CONCURRENCY` | `3`      | Number of links fetched in parallel during an import.    |
 | `MAX_DOWNLOAD_MB`    | `1024`   | Maximum size of a single downloaded or uploaded file.    |
+| `DB_IDLE_CLOSE_MS`   | `500`    | Idle ms before the database closes; `0` never closes.    |
 
 Per-browser preferences, such as layout, thumbnail size, and video autoplay, are set in **Settings**. The theme
 (**Settings → Appearance**) — light, dark or system, a theme (Classic, the default, or Graphite, Slate, Sepia), OLED
@@ -232,7 +233,9 @@ Set `AUTH_PASSWORD` to require a web login; creating API keys does not enable th
 | `DATA_DIR/files/<id>/`   | Original files.                |
 | `DATA_DIR/thumbs/`       | WebP and JPEG XL thumbnails.   |
 
-To back up a library, copy `DATA_DIR` while the server is stopped.
+The server closes the database half a second after its last use (`DB_IDLE_CLOSE_MS`) and opens it again when
+needed, so a sync tool can replace `library.db` meanwhile. When the file was replaced, the server shows the new
+library and open browser tabs refresh. To back up a library, copy `DATA_DIR` while the server is stopped.
 
 ### Library folder
 
@@ -252,3 +255,9 @@ Outside `DATA_DIR`, the database is opened exclusively, which works on network s
 library at a time; a second server is told the library is in use. If the folder is missing at startup, such as an
 unmounted share, the server answers every request with `503` and tries again every 10 seconds. It never creates
 an empty library in place of the missing one. In Docker, the folder must be mounted into the container.
+
+In a synced folder (Syncthing, for example), every write goes straight into `library.db`, so that file alone is the
+whole library. Leave `library.db-wal`, `library.db-shm` and `library.db-journal` out of the sync. Let one machine
+write at a time, and let its changes sync before another machine writes. If two machines change the library before
+they sync, Syncthing keeps one database and renames the other to `library.sync-conflict-….db`; the server names
+that file in its log, because the other machine's changes may be in it.

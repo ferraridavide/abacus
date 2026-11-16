@@ -10,6 +10,7 @@ import { thumbnailSettings, updateThumbnails } from './thumbnails.js';
 import { storageUsage } from './storage.js';
 import { browseFolders, dataLocation, startMove } from './data-location.js';
 import { config } from './config.js';
+import { noticeReplacedLibrary } from './db.js';
 
 const notFound = (reply) => reply.code(404).send({ error: 'Not found' });
 
@@ -48,6 +49,13 @@ export async function routes(app) {
   // Changes whenever the library does, so the web app can refresh itself after an outside add (web login only).
   app.get('/api/revision', async (req, reply) => {
     reply.header('cache-control', 'no-store');
+    // A tab that is only polling must learn that a sync tool replaced the library too. A library that can't be
+    // opened right now is no reason to fail the poll.
+    try {
+      noticeReplacedLibrary();
+    } catch (err) {
+      req.log.warn(err);
+    }
     // the folder too: when the library moves, clients start over instead of keeping items from the old one
     return { revision: getRevision(), library: config.dataDir };
   });

@@ -24,9 +24,18 @@ export const config = {
   authPassword: process.env.AUTH_PASSWORD || '',
   maxDownloadBytes: Number(process.env.MAX_DOWNLOAD_MB || 1024) * 1024 * 1024,
   importConcurrency: Number(process.env.IMPORT_CONCURRENCY || 3),
+  // How long the database stays open after its last use, so a sync tool can replace library.db; 0 keeps it open
+  dbIdleCloseMs: idleCloseMs(process.env.DB_IDLE_CLOSE_MS),
 };
 
 export const paths = dataPaths(dataDir);
+
+function idleCloseMs(value) {
+  if (value === undefined || value === '') return 500;
+  const ms = Number(value);
+  if (!Number.isFinite(ms) || ms < 0) throw new Error(`DB_IDLE_CLOSE_MS must be a number of milliseconds, not ${value}`);
+  return ms;
+}
 
 // A chosen folder always holds a library (it was copied or opened there). Without one it's most likely an unmounted
 // share or a sync that hasn't arrived, and starting an empty library in its place would split the data in two.

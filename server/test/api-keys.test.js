@@ -41,6 +41,8 @@ describe('integration API keys', () => {
     assert.notEqual(key.id, other.id);
 
     const db = new DatabaseSync(path.join(app.dataDir, 'library.db'), { readOnly: true });
+    // the server may be closing it right now
+    db.exec('PRAGMA busy_timeout = 5000');
     try {
       const stored = db.prepare('SELECT * FROM api_keys WHERE id = ?').get(key.id);
       assert.equal(stored.token_hash, createHash('sha256').update(key.token).digest('hex'));
