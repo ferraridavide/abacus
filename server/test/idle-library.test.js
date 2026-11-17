@@ -57,6 +57,35 @@ function makeLibrary(file, names = []) {
   }
 }
 
+/**
+ * The log a server left behind when it was killed with writes it had not folded into library.db, as servers before
+ * this one did. Returns a copy of it. Beside any other library.db it is stale: SQLite would still replay it.
+ */
+function makeStaleLog(names) {
+  const file = path.join(fs.mkdtempSync(path.join(scratch, 'killed-')), 'library.db');
+  fs.copyFileSync(template, file);
+  const killed = new DatabaseSync(file);
+  try {
+    killed.exec('PRAGMA locking_mode = EXCLUSIVE; PRAGMA journal_mode = WAL; PRAGMA wal_autocheckpoint = 0;');
+    const insert = killed.prepare("INSERT INTO items (id, name, type, created_at, updated_at) VALUES (?, ?, 'bookmark', ?, ?)");
+    for (const name of names) insert.run('stale-' + name, name, Date.now(), Date.now());
+    const log = file + '-wal.copy';
+    fs.copyFileSync(file + '-wal', log);
+    return log;
+  } finally {
+    killed.close();
+  }
+}
+
+const listNames = async (app) => {
+  const { status, data } = await app.call('GET', '/api/items', undefined, basic);
+  assert.equal(status, 200, JSON.stringify(data));
+  return data.items.map((item) => item.name);
+};
+
+/** The logs the server moved out of the library folder, by name. */
+const setAside = (app) => fs.readdirSync(path.join(app.dataDir, 'set-aside'), { withFileTypes: true }).map((e) => e.name);
+
 /** Start a server whose library is in a folder of its own, outside DATA_DIR, as in a synced folder. */
 async function startOutsideHome(env = {}, { names = [], beside = [] } = {}) {
   const home = fs.mkdtempSync(path.join(scratch, 'home-'));
@@ -192,6 +221,79 @@ describe('a library in a synced folder', () => {
     const { data } = await next.call('GET', '/api/items', undefined, basic);
     assert.deepEqual(data.items.map((item) => item.name), ['from another machine']);
     assert.equal((await next.call('GET', '/api/items/' + killed, undefined, basic)).status, 404);
+  });
+
+  test('sets aside a log it finds beside the library, instead of replaying it', async () => {
+    const app = await startOutsideHome(IDLE, { names: ['kept'] });
+    assert.deepEqual(await listNames(app), ['kept']);
+    await whileClosed(app.db);
+    const before = hash(app.db);
+    // a sync tool brings the log of another machine's killed server, or this folder still had one from long ago
+    const stale = makeStaleLog(['from a stale log']);
+    fs.copyFileSync(stale, app.db + '-wal');
+
+    assert.deepEqual(await listNames(app), ['kept']);
+    await whileClosed(app.db);
+    assert.equal(hash(app.db), before, 'library.db is as it was');
+    assert.equal(fs.existsSync(app.db + '-wal'), false);
+    const aside = setAside(app);
+    assert.equal(aside.length, 1, 'the log is kept, outside the library folder');
+    assert.match(aside[0], /^library\.db-wal\./);
+    assert.ok(fs.readFileSync(path.join(app.dataDir, 'set-aside', aside[0])).equals(fs.readFileSync(stale)));
+    assert.ok(app.log.includes(path.join(app.dataDir, 'set-aside', aside[0])), 'and the server says where it went');
+  });
+
+  test('does not replay a stale log when it starts', async () => {
+    const app = await startOutsideHome(STAYS_OPEN, { names: ['kept'] });
+    assert.deepEqual(await listNames(app), ['kept']);
+    const exited = new Promise((resolve) => app.server.once('exit', resolve));
+    app.server.kill('SIGKILL');
+    await exited;
+    const before = hash(app.db);
+    fs.copyFileSync(makeStaleLog(['from a stale log']), app.db + '-wal');
+
+    const next = await startAbacus(IDLE, { dataDir: app.dataDir });
+    running.push(next);
+    assert.deepEqual(await listNames(next), ['kept']);
+    await whileClosed(app.db);
+    assert.equal(hash(app.db), before, 'library.db is as it was');
+    assert.equal(setAside(next).length, 1);
+  });
+
+  test('keeps only the last few logs it set aside', async () => {
+    const app = await startOutsideHome(IDLE, { names: ['kept'] });
+    const stale = makeStaleLog(['from a stale log']);
+    for (let i = 0; i < 7; i++) {
+      await whileClosed(app.db);
+      fs.copyFileSync(stale, app.db + '-wal');
+      assert.deepEqual(await listNames(app), ['kept']);
+    }
+    assert.equal(setAside(app).length, 5);
+  });
+
+  test('does not use a library that arrives damaged', async () => {
+    const app = await startOutsideHome(IDLE, { names: ['kept'] });
+    assert.deepEqual(await listNames(app), ['kept']);
+    await whileClosed(app.db);
+    const good = path.join(app.library, 'good.tmp');
+    const damaged = path.join(app.library, 'damaged.tmp');
+    fs.copyFileSync(app.db, good);
+    // a library whose last page is not what the rest of it expects
+    const bytes = fs.readFileSync(app.db);
+    bytes.fill(0, bytes.length - 4096);
+    fs.writeFileSync(damaged, bytes);
+    const before = hash(damaged);
+
+    swapIn(app, damaged);
+    const refused = await app.call('GET', '/api/items', undefined, basic);
+    assert.equal(refused.status, 503, JSON.stringify(refused.data));
+    assert.match(refused.data.error, /damaged/);
+    assert.equal((await app.call('POST', '/api/add', { name: 'not written', text: 'x' })).status, 503);
+    assert.equal(await revisionStatus(app), 200, 'the revision poll still answers');
+    assert.equal(hash(app.db), before, 'the damaged file is left as it arrived');
+
+    swapIn(app, good);
+    assert.deepEqual(await listNames(app), ['kept']);
   });
 
   test('shows a library replaced from outside', async () => {

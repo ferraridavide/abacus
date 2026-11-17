@@ -46,15 +46,18 @@ export async function routes(app) {
     return { folders: lib.listFolderTree(), tags: lib.listTagNames() };
   });
 
+  let lastWarning = null;
   // Changes whenever the library does, so the web app can refresh itself after an outside add (web login only).
   app.get('/api/revision', async (req, reply) => {
     reply.header('cache-control', 'no-store');
     // A tab that is only polling must learn that a sync tool replaced the library too. A library that can't be
-    // opened right now is no reason to fail the poll.
+    // opened right now is no reason to fail the poll, and is said once: a tab asks every two seconds.
     try {
       noticeReplacedLibrary();
+      lastWarning = null;
     } catch (err) {
-      req.log.warn(err);
+      if (err.message !== lastWarning) req.log.warn(err);
+      lastWarning = err.message;
     }
     // the folder too: when the library moves, clients start over instead of keeping items from the old one
     return { revision: getRevision(), library: config.dataDir };

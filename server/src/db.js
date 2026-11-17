@@ -15,6 +15,7 @@ import { bumpRevision } from './revision.js';
 
 const outsideHome = !samePath(config.dataDir, config.homeDir);
 const SQLITE_BUSY = 5;
+const SQLITE_CORRUPT = 11;
 const SQLITE_CANTOPEN = 14;
 const SQLITE_NOTADB = 26;
 // Syncthing removes the old file before it moves the new one into place, so for a moment there is none
@@ -22,8 +23,15 @@ const OPEN_TRIES = 5;
 const OPEN_RETRY_MS = 50;
 const LOOK_EVERY_MS = 250;
 const CONFLICT_COPY = /^library\.sync-conflict-.*\.db$/;
+// in the home folder, which no sync tool looks at
+const SET_ASIDE_DIR = path.join(config.homeDir, 'set-aside');
+const SET_ASIDE_KEPT = 5;
 
 const unavailable = (message) => Object.assign(new Error(message), { code: DATA_UNAVAILABLE, statusCode: 503 });
+const damaged = (detail) =>
+  unavailable(
+    `The library in ${config.dataDir} is damaged (${String(detail).replace(/\s+/g, ' ').trim()}); it is left as it is until a good copy arrives`
+  );
 // node:sqlite is synchronous, and so is everything that uses it: waiting for the file has to block too
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
@@ -172,6 +180,7 @@ function open() {
     // in doubt it counts as replaced: that costs clients a refetch, where a missed one leaves stale caches
     const replaced = !firstOpen && !sameFile(file, lastClosed);
     if (firstOpen || replaced) {
+      if (outsideHome) refuseDamaged();
       // the file may come from a machine on older code
       migrate();
       keepFileWhole();
@@ -202,6 +211,7 @@ function connect({ mayBeNew }) {
 
 function holdsLibrary({ mayBeNew }) {
   try {
+    if (outsideHome) setAsideLog();
     conn.open();
     conn.exec('PRAGMA busy_timeout = 5000');
     // A library outside DATA_DIR may be on a network share or in a synced folder. WAL's shared-memory index doesn't
@@ -224,8 +234,66 @@ function holdsLibrary({ mayBeNew }) {
     if (outsideHome && err.errcode === SQLITE_BUSY) {
       throw unavailable(`The library in ${config.dataDir} is in use by another Abacus server`);
     }
+    if (outsideHome && err.errcode === SQLITE_CORRUPT) throw damaged(err.message);
     throw err;
   }
+}
+
+/**
+ * Move a log that is beside the library out of SQLite's sight, before the library is opened. Outside the home folder
+ * this server leaves nothing in the log: every write is folded into library.db at once, and closing removes the file.
+ * A log that is there anyway was left by a server that was killed or by an older version, on this machine or on one
+ * a sync tool brought it from, and it belongs to the library.db of that moment. SQLite can't tell: it replays any log
+ * it finds. On 17 November 2026 a week-old log, replayed into the library a sync tool had just delivered, left every
+ * machine with a database that couldn't be read. The log is kept in the home folder, in case its changes are wanted.
+ */
+function setAsideLog() {
+  const log = paths.db + '-wal';
+  let kept;
+  try {
+    if (!fs.statSync(log, { throwIfNoEntry: false })?.size) return;
+    fs.mkdirSync(SET_ASIDE_DIR, { recursive: true });
+    kept = path.join(SET_ASIDE_DIR, `library.db-wal.${new Date().toISOString().replaceAll(':', '-')}`);
+    moveFile(log, kept);
+  } catch (err) {
+    // opening the library with the log still there would replay it
+    throw unavailable(`Can't move ${log} out of the way: ${err.message}`);
+  }
+  console.warn(
+    `abacus: ${log} was left by a server that didn't close the library, here or on another machine. It may belong to an older library.db, so it was not applied; it is kept as ${kept}`
+  );
+  try {
+    const older = fs.readdirSync(SET_ASIDE_DIR).filter((name) => name.startsWith('library.db-wal.')).sort();
+    for (const name of older.slice(0, -SET_ASIDE_KEPT)) fs.rmSync(path.join(SET_ASIDE_DIR, name), { force: true });
+  } catch {
+    /* the older ones can go next time */
+  }
+}
+
+function moveFile(from, to) {
+  try {
+    fs.renameSync(from, to);
+  } catch (err) {
+    // the home folder can be on another drive than the library
+    if (err.code !== 'EXDEV') throw err;
+    fs.copyFileSync(from, to);
+    fs.rmSync(from);
+  }
+}
+
+/**
+ * A sync tool can deliver a library that isn't whole: copied while another machine was writing it, or already
+ * damaged there. Anything written to it would become the newest version on every machine, so such a library isn't
+ * used at all. The next open looks again: by then a good copy may have arrived.
+ */
+function refuseDamaged() {
+  let check;
+  try {
+    check = conn.prepare('PRAGMA quick_check(1)').get().quick_check;
+  } catch (err) {
+    check = err.message;
+  }
+  if (check !== 'ok') throw damaged(check);
 }
 
 /**

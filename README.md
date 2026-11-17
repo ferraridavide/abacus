@@ -260,4 +260,12 @@ In a synced folder (Syncthing, for example), every write goes straight into `lib
 whole library. Leave `library.db-wal`, `library.db-shm` and `library.db-journal` out of the sync. Let one machine
 write at a time, and let its changes sync before another machine writes. If two machines change the library before
 they sync, Syncthing keeps one database and renames the other to `library.sync-conflict-….db`; the server names
-that file in its log, because the other machine's changes may be in it.
+that file in its log, because the other machine's changes may be in it. Turn on file versioning in the sync tool:
+it keeps every library the sync replaces.
+
+A `library.db-wal` that is beside the library when the server opens it is never applied. It was left by a server
+that was killed, or it came from another machine, and it may belong to an older `library.db`; applying it would
+damage the library on every machine. The server moves it to `DATA_DIR/set-aside` (the last five are kept) and says
+so in its log. Before updating from a version that kept the database open, stop the server normally, so that its
+last changes are in `library.db`. A library that arrives damaged is not used either: the server answers `503` and
+leaves the file as it is until a good copy arrives.
