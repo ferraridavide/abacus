@@ -38,6 +38,8 @@ describe('appearance', () => {
   test('stores only the choices made, so the rest keeps following the default', async () => {
     await patch({ corners: 'squared' });
     const db = new DatabaseSync(path.join(app.dataDir, 'library.db'), { readOnly: true });
+    // the server may be closing it right now
+    db.exec('PRAGMA busy_timeout = 5000');
     try {
       const row = db.prepare("SELECT value FROM settings WHERE key = 'appearance'").get();
       assert.deepEqual(JSON.parse(row.value), { corners: 'squared' });

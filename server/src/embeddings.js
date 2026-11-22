@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
-import { db } from './db.js';
+import { db, onLibraryReplaced } from './db.js';
 import { paths } from './config.js';
 import { getSetting, putSetting } from './settings.js';
 import { applyValues, fieldDefaults, missingField, publicFields } from './fields.js';
@@ -287,6 +287,9 @@ const putRow = db.prepare(
 
 /** The current model's vectors by kind and item id, read once and kept in step with writes. */
 let cache = null;
+onLibraryReplaced(() => {
+  cache = null;
+});
 
 function vectors(model) {
   if (cache?.model !== model) {

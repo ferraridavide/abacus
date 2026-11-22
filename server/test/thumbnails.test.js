@@ -27,7 +27,9 @@ async function upload(name, { width = 64, height = 48 } = {}) {
 }
 
 async function settled() {
-  for (let i = 0; i < 200; i++) {
+  // a deadline rather than a count of polls: a 4000 px preview alone takes several seconds on a busy machine
+  const until = Date.now() + 60_000;
+  while (Date.now() < until) {
     const { data } = await app.call('GET', '/api/settings/thumbnails', undefined, basic);
     if (data.state !== 'running') return data;
     await new Promise((resolve) => setTimeout(resolve, 50));

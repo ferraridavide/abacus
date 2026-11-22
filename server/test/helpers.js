@@ -57,6 +57,8 @@ export async function startAbacus(env = {}, { dataDir = fs.mkdtempSync(path.join
       LOG_LEVEL: 'silent',
       IMPORT_CONCURRENCY: '2',
       COBALT_URL: '',
+      // close the database almost at once, so every test crosses many reopens; DB_IDLE_CLOSE_MS=0 runs the suite with it kept open
+      DB_IDLE_CLOSE_MS: process.env.DB_IDLE_CLOSE_MS ?? '25',
       ...env,
     },
     stdio: ['ignore', 'pipe', 'pipe'],

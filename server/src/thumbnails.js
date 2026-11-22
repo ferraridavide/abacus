@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { db } from './db.js';
+import { db, onLibraryReplaced } from './db.js';
 import { paths } from './config.js';
 import { makeJxl, THUMB_WIDTH } from './media.js';
 import { getSetting, putSetting } from './settings.js';
@@ -14,6 +14,9 @@ import { bumpRevision } from './revision.js';
 // `previews`: the screen-sized previews, on by default; only in effect while `jxl` is on.
 const DEFAULTS = { jxl: false, previews: true };
 let settings = getSetting('thumbnails', DEFAULTS);
+onLibraryReplaced(() => {
+  settings = getSetting('thumbnails', DEFAULTS);
+});
 
 // Bumped whenever a setting is toggled: a pass started before stops, and its in-flight result is thrown away.
 let generation = 0;

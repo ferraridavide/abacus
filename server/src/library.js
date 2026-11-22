@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { db, tx } from './db.js';
+import { db, onLibraryReplaced, tx } from './db.js';
 import { paths } from './config.js';
 import { newId, safeName, VIDEO_EXTS } from './util.js';
 import { probeImage, makeThumb, makeHeicPreview, isHeic, extractPalette, extractHistogram } from './media.js';
@@ -231,6 +231,7 @@ const deleteBins = db.prepare('DELETE FROM item_color_bins WHERE item_id = ?');
  */
 const histCache = new Map();
 const HIST_CACHE_MAX = 20000;
+onLibraryReplaced(() => histCache.clear());
 
 /** Packed histogram for a row: pixels first, stored swatches while a library is still being indexed. */
 function packedHistogram(row) {

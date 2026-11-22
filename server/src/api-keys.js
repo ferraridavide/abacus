@@ -6,7 +6,12 @@ const hashToken = (token) => createHash('sha256').update(token).digest('hex');
 const metadata = 'id, name, created_at AS createdAt, last_used_at AS lastUsedAt';
 const insertKey = db.prepare('INSERT INTO api_keys (id, name, token_hash, created_at) VALUES (?, ?, ?, ?)');
 const findKey = db.prepare('SELECT id FROM api_keys WHERE token_hash = ?');
-const markUsed = db.prepare('UPDATE api_keys SET last_used_at = ? WHERE id = ?');
+// At most once an hour: every record is a write, and a machine that only answers reads must leave a synced library
+// as it found it. An UPDATE that matches no row doesn't touch the file.
+const USE_RECORDED_EVERY_MS = 60 * 60 * 1000;
+const markUsed = db.prepare(
+  'UPDATE api_keys SET last_used_at = ? WHERE id = ? AND (last_used_at IS NULL OR last_used_at < ?)'
+);
 
 export function listApiKeys() {
   return db.prepare(`SELECT ${metadata} FROM api_keys ORDER BY created_at DESC, rowid DESC`).all();
@@ -33,7 +38,8 @@ export function findApiKey(token) {
 }
 
 export function recordApiKeyUse(id) {
-  markUsed.run(Date.now(), id);
+  const now = Date.now();
+  markUsed.run(now, id, now - USE_RECORDED_EVERY_MS);
 }
 
 // Import once so existing clients keep working, but deleting the key remains effective after a restart.
